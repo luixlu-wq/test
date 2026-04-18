@@ -1,26 +1,6 @@
-Below is the **rewritten Part 4 — Playwright Hybrid Framework**, updated to fit the **final architectural design**.
+I don’t see the Gemini review text in your message, so I can’t map changes to each comment one by one. I used your uploaded Part 4 as the source and strengthened the areas that most likely need refinement in line with the rest of the architecture: native state-aware execution, stricter diagnostic vs regression behavior, stronger forensic evidence hooks, clearer healing governance, and stronger playbook hardening. 
 
-I kept the strongest parts of your previous framework design:
-
-* Playwright as the deterministic runtime
-* AI-assisted authoring instead of uncontrolled runtime AI browsing
-* RAG-grounded generation and reuse
-* semantic assertions
-* evidence-rich execution
-* controlled healing
-
-I updated it to match the final architecture in these areas:
-
-* **distributed understanding**
-* **semantic state map as a first-class execution input**
-* **requirement mismatch awareness**
-* **dual execution modes**: diagnostic vs regression
-* **forensic self-healing with persistent healing log**
-* **deterministic playbook export**
-* **forensic-grade evidence schema**
-* **local shift-left compatibility**
-
-Your previous framework was already strong on RAG-grounded authoring and stable execution. The main gap was that it did not yet fully reflect the final architecture’s **state-map-driven execution**, **diagnostic-to-playbook promotion**, **forensic healing**, and **semantic trace evidence**. 
+Below is the **rewritten Part 4 — Playwright Hybrid Framework**, kept full-length and aligned to the final architecture.
 
 ---
 
@@ -30,9 +10,11 @@ Your previous framework was already strong on RAG-grounded authoring and stable 
 
 ### Final Architecture-Aligned Version
 
+#### Full merged rewrite
+
 This section defines the **Playwright + AI + Graph-RAG hybrid framework** for your QA platform.
 
-The goal is still **not** to let AI directly drive the browser in an uncontrolled way for every run.
+The goal is **not** to let AI directly drive the browser in an uncontrolled way for every run.
 
 The goal is to combine:
 
@@ -59,7 +41,7 @@ This framework is the practical bridge between:
 
 ---
 
-# 1. Framework Goals
+# 1. Framework goals
 
 The framework should support:
 
@@ -76,11 +58,11 @@ The framework should support:
 11. traceability to requirements, states, flows, pages, and APIs
 12. future extension to visual checks, PR-based regression, and crawler discovery
 
-The earlier version already covered most of these, but the final architecture requires much stronger emphasis on **state maps**, **dual execution modes**, **healing logs**, and **playbook export**. 
+The uploaded version already had the right direction. The main strengthening in this rewrite is to make the runtime layer more explicitly **state-native**, more explicitly **diagnostic vs regression aware**, and more explicitly connected to the evidence and hardening workflow. 
 
 ---
 
-# 2. Core Design Principle
+# 2. Core design principle
 
 ## 2.1 AI should author, discover, and explain — not replace the runtime
 
@@ -110,7 +92,7 @@ Playwright should be used for:
 * navigation
 * element interaction
 * state-aware waiting
-* assertions
+* state-aware assertions
 * tracing
 * screenshots/video
 * DOM/network capture
@@ -131,9 +113,9 @@ This keeps execution stable and authoring grounded.
 
 ---
 
-# 3. Execution Philosophy
+# 3. Execution philosophy
 
-The final architecture requires a stronger execution philosophy than before.
+The final architecture requires a stronger execution philosophy than normal browser automation.
 
 ## 3.1 Visible-truth execution
 
@@ -149,6 +131,14 @@ The framework should validate what is visible and observable:
 
 The framework should execute against semantic state expectations, not only DOM selectors.
 
+This means the runtime should understand:
+
+* current expected state
+* next expected state
+* acceptable transition signals
+* stable conditions for action/assertion
+* mismatch warnings that may make state assumptions unsafe
+
 ## 3.3 Deterministic-by-default execution
 
 Stable regression mode must not depend on free-form AI thinking at runtime.
@@ -162,13 +152,36 @@ When needed, the framework can run in a bounded discovery-oriented mode to:
 * test healing candidates
 * export a deterministic playbook
 
+## 3.5 Hardening through reuse
+
+Once a stable diagnostic pattern is discovered, the framework should not keep rediscovering it forever.
+It should promote that pattern into a governed deterministic playbook for later reuse.
+
 ---
 
-# 4. Hybrid Model Overview
+# 4. Strategic framework win
 
-The framework now has **four major layers**.
+The biggest strength of this framework is the separation between:
 
-## 4.1 Design-Time AI + Graph-RAG Layer
+* **design-time intelligence**
+* **state-aware deterministic runtime**
+* **post-run forensic interpretation**
+* **hardening into playbooks**
+
+That gives you:
+
+* AI flexibility where it helps
+* deterministic runtime where it matters
+* forensic audit where trust matters
+* reusable stability where scale matters
+
+---
+
+# 5. Hybrid model overview
+
+The framework has **four major layers**.
+
+## 5.1 Design-Time AI + Graph-RAG Layer
 
 Used before execution:
 
@@ -182,7 +195,7 @@ Used before execution:
 * context-pack consumption
 * graph-grounded requirement expansion
 
-## 4.2 Semantic State Layer
+## 5.2 Semantic State Layer
 
 Used before and during execution:
 
@@ -194,19 +207,19 @@ Used before and during execution:
 * mismatch warnings
 * deterministic playbook refs
 
-## 4.3 Runtime Execution Layer
+## 5.3 Runtime Execution Layer
 
 Used during execution:
 
 * Playwright sessions
 * deterministic actions
 * state-aware step execution
+* state-aware assertions
 * evidence capture
-* runtime checks
 * bounded fallback logic
 * dual execution mode handling
 
-## 4.4 Post-Execution Analysis Layer
+## 5.4 Post-Execution Analysis Layer
 
 Used after or around execution:
 
@@ -221,9 +234,9 @@ Used after or around execution:
 
 ---
 
-# 5. Framework Architecture
+# 6. Framework architecture
 
-```text id="dgn4h3"
+```text
 +------------------------------------------------------------------+
 | Design-Time AI + Graph-RAG Layer                                 |
 | - scenario generation                                            |
@@ -265,10 +278,11 @@ Used after or around execution:
 | Runtime Layer                                                    |
 | - Playwright session manager                                     |
 | - step executor                                                  |
-| - state-aware wait engine                                        |
+| - state signal wait engine                                       |
 | - semantic assertion engine                                      |
 | - forensic healing adapter                                       |
 | - evidence collector                                             |
+| - runtime state observer                                         |
 +------------------------------+-----------------------------------+
                                |
                                v
@@ -287,15 +301,13 @@ Used after or around execution:
 +------------------------------------------------------------------+
 ```
 
-This is the major update required by the final architecture. 
-
 ---
 
-# 6. Framework Styles Supported
+# 7. Framework styles supported
 
 The framework should support **four test representation styles**.
 
-## 6.1 Code-first assets
+## 7.1 Code-first assets
 
 Actual Playwright test files.
 
@@ -310,7 +322,7 @@ Use these for:
 * approved assets
 * CI-friendly execution
 
-## 6.2 Structured scenario specs
+## 7.2 Structured scenario specs
 
 JSON/YAML execution definitions that the framework translates into runtime steps.
 
@@ -320,7 +332,7 @@ Use these for:
 * intermediate assets
 * reviewable scenario definitions
 
-## 6.3 Graph-RAG-grounded generated specs
+## 7.3 Graph-RAG-grounded generated specs
 
 Generated specs that explicitly reference:
 
@@ -331,9 +343,9 @@ Generated specs that explicitly reference:
 * semantic state refs
 * mismatch refs
 
-This should now be the **default generation style**.
+This should be the default generation style.
 
-## 6.4 Deterministic playbook-backed specs
+## 7.4 Deterministic playbook-backed specs
 
 Approved regression assets that include or reference:
 
@@ -342,13 +354,13 @@ Approved regression assets that include or reference:
 * approved wait strategy
 * approved healing assumptions if policy allows
 
-This is new and is required by the final architecture.
+This is required by the final architecture.
 
 ---
 
-# 7. Recommended Project Structure
+# 8. Recommended project structure
 
-```text id="n3wz5j"
+```text
 qa-framework/
   playwright.config.ts
   src/
@@ -356,6 +368,7 @@ qa-framework/
       session/
       execution/
       state-signals/
+      state-observer/
       assertions/
       healing/
       evidence/
@@ -371,6 +384,7 @@ qa-framework/
       maps/
       transitions/
       fingerprints/
+      outcomes/
     domain/
       authentication/
       registration/
@@ -386,6 +400,7 @@ qa-framework/
       auth.assertions.ts
       common.assertions.ts
       state.assertions.ts
+      business.assertions.ts
     playbooks/
       login/
       registration/
@@ -396,6 +411,7 @@ qa-framework/
       context.fixture.ts
       stateMap.fixture.ts
       playbook.fixture.ts
+      evidence.fixture.ts
     generated/
       specs/
       scenarios/
@@ -422,36 +438,27 @@ qa-framework/
   artifacts/
 ```
 
-### New additions required by the final architecture
+### Important additions
 
-* `core/state-signals/`
-* `core/playbooks/`
-* `core/mismatch/`
-* `state/maps/`
-* `state/transitions/`
-* `state/fingerprints/`
-* `fixtures/stateMap.fixture.ts`
-* `fixtures/playbook.fixture.ts`
-* `adapters/state-map.adapter.ts`
-* `adapters/healing.adapter.ts`
-* `adapters/playbook.adapter.ts`
-* `generated/healing/`
-* `generated/playbooks/`
+* `core/state-observer/`
+* `state/outcomes/`
+* `assertions/business.assertions.ts`
+* `fixtures/evidence.fixture.ts`
+
+These additions make the runtime and evidence responsibilities clearer.
 
 ---
 
-# 8. Layered Framework Design
+# 9. Layered framework design
 
-## 8.1 Core layer
-
-The framework kernel.
+## 9.1 Core layer
 
 Contains:
 
 * browser/session management
 * step execution
 * state-aware waiting
-* assertion runtime
+* state-aware assertion runtime
 * locator resolution
 * evidence capture
 * common errors
@@ -459,7 +466,7 @@ Contains:
 * retrieval/context interfaces
 * scenario compilation
 
-## 8.2 Graph-RAG context layer
+## 9.2 Graph-RAG context layer
 
 Contains:
 
@@ -470,7 +477,7 @@ Contains:
 * requirement grounding resolver
 * mismatch ref intake
 
-## 8.3 Semantic state layer
+## 9.3 Semantic state layer
 
 Contains:
 
@@ -481,37 +488,35 @@ Contains:
 * element fingerprint support
 * mismatch interpretation support
 
-## 8.4 Domain layer
+## 9.4 Domain layer
 
 Business-specific reusable logic.
 
-## 8.5 Flow layer
+## 9.5 Flow layer
 
 Reusable end-to-end business flows.
 
-## 8.6 Page object layer
+## 9.6 Page object layer
 
 Page-specific abstractions.
 
-## 8.7 Assertion layer
+## 9.7 Assertion layer
 
 Business, semantic, and state-aware assertions.
 
-## 8.8 Playbook layer
+## 9.8 Playbook layer
 
 Stores and consumes deterministic playbook logic for regression execution.
 
-## 8.9 Generated layer
+## 9.9 Generated layer
 
 AI-generated assets that can later be reviewed and promoted.
 
 ---
 
-# 9. Core Runtime Components
+# 10. Core runtime components
 
----
-
-## 9.1 Session Manager
+## 10.1 Session Manager
 
 ### Responsibility
 
@@ -528,7 +533,7 @@ Create and manage Playwright browser/session lifecycle.
 
 ### Example interface
 
-```ts id="dewhqk"
+```ts
 interface SessionManager {
   startSession(config: SessionConfig): Promise<TestSession>;
   closeSession(sessionId: string): Promise<void>;
@@ -537,7 +542,7 @@ interface SessionManager {
 
 ### SessionConfig example
 
-```ts id="hgbv4p"
+```ts
 type SessionConfig = {
   runId: string;
   browser: 'chromium' | 'firefox' | 'webkit';
@@ -552,11 +557,9 @@ type SessionConfig = {
 };
 ```
 
-This is similar to the previous version, but now execution mode, playbook, and state map are explicit. 
-
 ---
 
-## 9.2 Step Executor
+## 10.2 Step Executor
 
 ### Responsibility
 
@@ -577,7 +580,7 @@ Supported action types:
 
 ### Example interface
 
-```ts id="f4l46y"
+```ts
 interface StepExecutor {
   executeStep(session: TestSession, step: TestStep, ctx: ExecutionContext): Promise<StepResult>;
 }
@@ -585,7 +588,7 @@ interface StepExecutor {
 
 ### Example step model
 
-```ts id="4sj6t3"
+```ts
 type TestStep = {
   id: string;
   action: string;
@@ -596,16 +599,43 @@ type TestStep = {
 };
 ```
 
-### Architectural correction
+### Architectural rule
 
-At runtime, Step Executor should **not** call retrieval for every action.
-Retrieval and grounding happen before runtime, except for tightly controlled diagnostic or post-failure analysis paths.
+At runtime, Step Executor should **not** call retrieval for every action. Retrieval and grounding happen before runtime, except for tightly controlled diagnostic or post-failure paths.
 
 ---
 
-## 9.3 State Signal Wait Engine
+## 10.3 Runtime State Observer
 
-This is a new explicit framework component required by the final architecture.
+This should be explicit.
+
+### Responsibility
+
+Observe whether the browser has reached a meaningful execution state.
+
+It should watch for:
+
+* spinner disappearance
+* component mounted and stable
+* button enabled
+* route stabilized
+* validation visible
+* expected content visible
+* known async transitions settled
+
+### Example interface
+
+```ts
+interface RuntimeStateObserver {
+  detectCurrentState(session: TestSession, stateMap: StateMap): Promise<ObservedState>;
+}
+```
+
+This strengthens state-native runtime behavior.
+
+---
+
+## 10.4 State Signal Wait Engine
 
 ### Responsibility
 
@@ -622,7 +652,7 @@ Wait for semantic and application-level state signals instead of naive sleeps.
 
 ### Example interface
 
-```ts id="7yajkz"
+```ts
 interface StateSignalWaitEngine {
   waitForSignal(session: TestSession, signal: StateSignalSpec): Promise<SignalResult>;
 }
@@ -630,7 +660,7 @@ interface StateSignalWaitEngine {
 
 ### Example spec
 
-```ts id="k8p1v8"
+```ts
 type StateSignalSpec = {
   id: string;
   signalType: 'spinner_hidden' | 'component_ready' | 'route_stable' | 'validation_visible';
@@ -639,19 +669,19 @@ type StateSignalSpec = {
 };
 ```
 
-This is one of the most important additions to make the framework fit the final architecture.
+This is one of the most important runtime components in the whole framework.
 
 ---
 
-## 9.4 Locator Resolver
+## 10.5 Locator Resolver
 
 ### Responsibility
 
-Resolve element targets using stable strategy.
+Resolve element targets using a stable strategy.
 
 ### Target model
 
-```ts id="7h1pce"
+```ts
 type ElementTarget = {
   semanticName?: string;
   testId?: string;
@@ -676,9 +706,9 @@ type ElementTarget = {
 6. stable CSS
 7. XPath last resort
 
-### Final-architecture correction
+### Architectural rule
 
-Locator resolution can be improved by:
+Locator resolution may be improved by:
 
 * state-map metadata
 * element fingerprint refs
@@ -688,7 +718,7 @@ But in regression mode, it must remain bounded and deterministic.
 
 ---
 
-## 9.5 Evidence Collector
+## 10.6 Evidence Collector
 
 ### Responsibility
 
@@ -710,7 +740,7 @@ Evidence types:
 
 ### Example interface
 
-```ts id="xv6sxd"
+```ts
 interface EvidenceCollector {
   captureStep(session: TestSession, step: TestStep, result: StepResult): Promise<void>;
   captureFailure(session: TestSession, error: Error): Promise<EvidenceRefs>;
@@ -718,9 +748,9 @@ interface EvidenceCollector {
 }
 ```
 
-### New helper interfaces
+### Helper interfaces
 
-```ts id="6czyja"
+```ts
 interface SemanticTraceWriter {
   write(trace: SemanticTraceInput): Promise<string>;
 }
@@ -734,11 +764,11 @@ interface VisualDiffCollector {
 }
 ```
 
-This aligns the framework with the final evidence schema.
+The evidence path should be strong enough that a reviewer can understand **what failed and why** without replaying the whole run.
 
 ---
 
-## 9.6 Semantic Assertion Engine
+## 10.7 Semantic Assertion Engine
 
 ### Responsibility
 
@@ -754,7 +784,7 @@ Turn business intent and semantic state expectations into executable assertions.
 
 ### Example interface
 
-```ts id="q7bpo0"
+```ts
 interface SemanticAssertionEngine {
   assert(assertion: SemanticAssertion, session: TestSession, ctx: AssertionContext): Promise<AssertionResult>;
 }
@@ -762,7 +792,7 @@ interface SemanticAssertionEngine {
 
 ### Example assertion model
 
-```ts id="2cste7"
+```ts
 type SemanticAssertion = {
   id: string;
   type: 'business_outcome' | 'validation' | 'navigation' | 'api_state' | 'ui_state';
@@ -773,21 +803,18 @@ type SemanticAssertion = {
 };
 ```
 
-### Final-architecture correction
+### Important strengthening
 
-Assertions should preferably be grounded from:
+The runtime should prefer **state-aware assertions** over shallow browser checks whenever the state map provides enough information.
 
-* requirement refs
-* flow refs
-* semantic state refs
-* expected outcome refs
-* approved assertion modules
+That means:
+
+* not just “URL changed”
+* but “expected semantic state was reached”
 
 ---
 
-## 9.7 Forensic Healing Adapter
-
-This replaces the earlier lighter healing concept with an architecture-aligned one.
+## 10.8 Forensic Healing Adapter
 
 ### Responsibility
 
@@ -803,7 +830,7 @@ Handle bounded healing attempts and produce persistent healing proposals/logs.
 
 ### Example output
 
-```json id="t7mdli"
+```json
 {
   "healingAttempted": true,
   "originalTarget": "button[type='submit']",
@@ -814,16 +841,22 @@ Handle bounded healing attempts and produce persistent healing proposals/logs.
 }
 ```
 
-### Correction
+### Architectural rule
 
 Healing must not be treated as just a fallback locator helper anymore.
-It is now part of a persistent forensic workflow.
+It is part of a persistent forensic workflow.
+
+### Additional constraint
+
+Regression mode should never silently drift into low-confidence healing. Low-confidence healing should surface as:
+
+* review-needed
+* diagnostic retry candidate
+* or test failure
 
 ---
 
-## 9.8 Playbook Exporter
-
-This is new and required by the final architecture.
+## 10.9 Playbook Exporter
 
 ### Responsibility
 
@@ -838,27 +871,34 @@ Export deterministic playbooks from successful diagnostic discoveries.
 
 ### Example interface
 
-```ts id="gljlwm"
+```ts
 interface PlaybookExporter {
   exportFromRun(run: DiagnosticRunAnalysis): Promise<DeterministicPlaybook>;
 }
 ```
 
+### Hardening rule
+
+A playbook should only be exported when the run demonstrates:
+
+* repeatable stable state signals
+* acceptable evidence quality
+* no unresolved blocking mismatch
+* no weak healing dependence unless explicitly reviewed
+
+This keeps playbooks trustworthy.
+
 ---
 
-# 10. New Architecture-Specific Framework Components
+# 11. Architecture-specific framework components
 
----
-
-## 10.1 Retrieval Adapter
+## 11.1 Retrieval Adapter
 
 ### Responsibility
 
 Call Retrieval/Context Pack service and return bounded context.
 
-### Example interface
-
-```ts id="kqf40g"
+```ts
 interface RetrievalAdapter {
   buildContextPack(input: ContextPackRequest): Promise<ContextPack>;
 }
@@ -866,15 +906,13 @@ interface RetrievalAdapter {
 
 ---
 
-## 10.2 Context Pack Consumer
+## 11.2 Context Pack Consumer
 
 ### Responsibility
 
 Consume and validate retrieved context before it affects generated assets.
 
-### Example interface
-
-```ts id="9gcrk8"
+```ts
 interface ContextPackConsumer {
   validate(pack: ContextPack): Promise<ValidatedContextPack>;
 }
@@ -882,17 +920,13 @@ interface ContextPackConsumer {
 
 ---
 
-## 10.3 State Map Adapter
-
-This is new.
+## 11.3 State Map Adapter
 
 ### Responsibility
 
 Load semantic state maps, transitions, and fingerprints for authoring and execution preparation.
 
-### Example interface
-
-```ts id="pr7u3n"
+```ts
 interface StateMapAdapter {
   getStateMap(caseId: string): Promise<StateMap>;
   getElementFingerprint(ref: string): Promise<ElementFingerprint>;
@@ -901,17 +935,13 @@ interface StateMapAdapter {
 
 ---
 
-## 10.4 Mismatch Adapter
-
-This is new.
+## 11.4 Mismatch Adapter
 
 ### Responsibility
 
 Provide mismatch warnings so authoring and execution can respect unresolved conflicts.
 
-### Example interface
-
-```ts id="v6lbqq"
+```ts
 interface MismatchAdapter {
   listWarnings(caseId: string): Promise<MismatchWarning[]>;
 }
@@ -919,23 +949,21 @@ interface MismatchAdapter {
 
 ---
 
-## 10.5 Scenario Grounding Resolver
+## 11.5 Scenario Grounding Resolver
 
 ### Responsibility
 
 Convert retrieved requirements, flows, pages, states, and APIs into authoring-ready scenario inputs.
 
-### Example interface
-
-```ts id="r0t4l5"
+```ts
 interface ScenarioGroundingResolver {
   resolve(pack: ValidatedContextPack, stateMap: StateMap): Promise<GroundedScenarioInput>;
 }
 ```
 
-### Correction
+### Rule
 
-This resolver should now use:
+This resolver should use:
 
 * state-map refs
 * mismatch warnings
@@ -943,7 +971,7 @@ This resolver should now use:
 
 ---
 
-## 10.6 Reusable Asset Selector
+## 11.6 Reusable Asset Selector
 
 ### Responsibility
 
@@ -961,9 +989,8 @@ Choose which retrieved reusable assets should be used.
 
 ---
 
-## 10.7 Scenario Compiler
+## 11.7 Scenario Compiler
 
-The previous design already had a Generated Test Compiler.
 Now it must compile:
 
 * scenario spec
@@ -979,11 +1006,9 @@ into deterministic Playwright code or structured runtime specs.
 
 ---
 
-# 11. Dual Execution Modes
+# 12. Dual execution modes
 
-This is one of the biggest framework changes required by the final architecture.
-
-## 11.1 Diagnostic Mode
+## 12.1 Diagnostic Mode
 
 Purpose:
 
@@ -1002,7 +1027,7 @@ Characteristics:
 * healing analysis allowed
 * playbook export possible
 
-## 11.2 Regression Mode
+## 12.2 Regression Mode
 
 Purpose:
 
@@ -1016,33 +1041,33 @@ Characteristics:
 * no uncontrolled exploratory behavior
 * no broad retrieval-driven runtime branching
 
-## 11.3 Promotion path
+## 12.3 Promotion path
 
 Successful diagnostic discoveries can be exported into deterministic playbooks and then used by regression runs after review.
 
-This is a core architecture fit requirement.
+This is the central hardening loop of the framework.
 
 ---
 
-# 12. Page Objects vs Flow Objects vs Domain Actions vs State Inputs
+# 13. Page objects vs flow objects vs domain actions vs state inputs
 
 Use all four, but for different purposes.
 
-## 12.1 Page Objects
+## 13.1 Page Objects
 
 Represent page-specific UI operations.
 
-## 12.2 Flow Objects
+## 13.2 Flow Objects
 
 Represent business flows spanning pages.
 
-## 12.3 Domain Actions
+## 13.3 Domain Actions
 
 Represent reusable domain capabilities across flows.
 
-## 12.4 State Inputs
+## 13.4 State Inputs
 
-Represent the semantic execution expectations used to choose:
+Represent semantic execution expectations used to choose:
 
 * which flow to use
 * which page objects are relevant
@@ -1050,27 +1075,25 @@ Represent the semantic execution expectations used to choose:
 * which waits are required
 * which playbook signals are relevant
 
-This is the final-architecture upgrade.
-
 ---
 
-# 13. Test Authoring Patterns
+# 14. Test authoring patterns
 
 The framework should support:
 
-## 13.1 Hand-authored stable tests
+## 14.1 Hand-authored stable tests
 
 Written or refined by humans.
 
-## 13.2 AI-generated draft tests
+## 14.2 AI-generated draft tests
 
 Generated from requirements and case artifacts.
 
-## 13.3 Hybrid tests
+## 14.3 Hybrid tests
 
 AI generates structure, humans refine and approve.
 
-## 13.4 Graph-RAG-grounded hybrid tests
+## 14.4 Graph-RAG-grounded hybrid tests
 
 AI generates or updates tests using:
 
@@ -1081,15 +1104,13 @@ AI generates or updates tests using:
 * similar historical tests
 * mismatch warnings
 
-## 13.5 Playbook-backed regression tests
+## 14.5 Playbook-backed regression tests
 
 Approved tests that reference deterministic playbooks discovered in diagnostic mode.
 
-This is new and required.
-
 ---
 
-# 14. Example Authoring Flow with Graph-RAG and State Map
+# 15. Example authoring flow with Graph-RAG and state map
 
 ## Step 1
 
@@ -1137,15 +1158,13 @@ Scenario Compiler emits:
 * source refs
 * metadata with context pack lineage
 
-That is how the framework should now use the final architecture.
-
 ---
 
-# 15. Example Test Style
+# 16. Example test style
 
-## 15.1 Good framework-level test style
+## 16.1 Good framework-level style
 
-```ts id="3v2ffn"
+```ts
 test('valid login succeeds', async ({ app, authAssertions, testData }) => {
   await app.flows.login.performValidLogin(
     testData.user.email,
@@ -1156,9 +1175,9 @@ test('valid login succeeds', async ({ app, authAssertions, testData }) => {
 });
 ```
 
-## 15.2 Example using flow + semantic assertion
+## 16.2 Example using flow + semantic assertion
 
-```ts id="m3wfc0"
+```ts
 test('invalid password shows validation error', async ({ app, authAssertions, testData }) => {
   await app.flows.login.performLoginAttempt(
     testData.user.email,
@@ -1169,9 +1188,9 @@ test('invalid password shows validation error', async ({ app, authAssertions, te
 });
 ```
 
-## 15.3 Final-architecture generation metadata example
+## 16.3 Metadata example
 
-```ts id="e5rkrd"
+```ts
 export const testMeta = {
   caseId: 'CASE-101',
   scenarioId: 'SCN-2002',
@@ -1190,11 +1209,11 @@ export const testMeta = {
 
 ---
 
-# 16. Fixtures Strategy
+# 17. Fixtures strategy
 
 Use Playwright fixtures heavily.
 
-## 16.1 Recommended fixtures
+## Recommended fixtures
 
 * environment fixture
 * session fixture
@@ -1203,10 +1222,10 @@ Use Playwright fixtures heavily.
 * application facade fixture
 * evidence fixture
 * context fixture
-* **stateMap fixture**
-* **playbook fixture**
+* stateMap fixture
+* playbook fixture
 
-## 16.2 `contextFixture`
+## `contextFixture`
 
 Provides:
 
@@ -1214,7 +1233,7 @@ Provides:
 * linked requirement refs
 * linked reusable asset refs
 
-## 16.3 `stateMapFixture`
+## `stateMapFixture`
 
 Provides:
 
@@ -1223,7 +1242,7 @@ Provides:
 * transition refs
 * fingerprint refs
 
-## 16.4 `playbookFixture`
+## `playbookFixture`
 
 Provides:
 
@@ -1231,17 +1250,17 @@ Provides:
 * deterministic wait definitions
 * mode-specific execution hints
 
-These are required to fit the final architecture.
+These are essential for keeping raw test bodies clean.
 
 ---
 
-# 17. Framework Facade Pattern
+# 18. Framework facade pattern
 
 Expose a top-level app/testing facade to keep generated tests clean.
 
 Example:
 
-```ts id="9wfq39"
+```ts
 class AppFacade {
   constructor(
     public pages: PageRegistry,
@@ -1257,16 +1276,15 @@ Generated tests should use:
 * `app.flows...`
 * `app.assertions...`
 
-### Important architectural rule
+### Architectural rule
 
-Graph-RAG, state-map, and playbook logic should stay out of raw test bodies as much as possible.
-Use them before compilation and in fixtures/runtime helpers, not scattered in every test.
+Graph-RAG, state-map, and playbook logic should stay out of raw test bodies as much as possible. Use them before compilation and in fixtures/runtime helpers.
 
 ---
 
-# 18. Assertion Design
+# 19. Assertion design
 
-## 18.1 Three assertion levels
+## 19.1 Three assertion levels
 
 ### Level 1 — Technical assertions
 
@@ -1288,9 +1306,9 @@ Use them before compilation and in fixtures/runtime helpers, not scattered in ev
 * dashboard stable
 * spinner disappeared before next action
 
-Your framework should prefer levels 2 and 3 whenever possible.
+The framework should prefer Levels 2 and 3 whenever possible.
 
-## 18.2 Assertion sourcing
+## 19.2 Assertion sourcing
 
 Assertions should be sourced from:
 
@@ -1301,11 +1319,9 @@ Assertions should be sourced from:
 * approved assertion modules
 * approved playbook signals where relevant
 
-This is the final-architecture-aligned version of semantic assertions.
-
 ---
 
-# 19. Metadata and Traceability in Tests
+# 20. Metadata and traceability in tests
 
 Every generated test asset should carry metadata.
 
@@ -1328,7 +1344,7 @@ Every generated test asset should carry metadata.
 
 Example:
 
-```ts id="lwomww"
+```ts
 export const testMeta = {
   caseId: 'CASE-101',
   scenarioId: 'SCN-2001',
@@ -1348,7 +1364,7 @@ export const testMeta = {
 
 ---
 
-# 20. Runtime State Integration
+# 21. Runtime state integration
 
 The Playwright framework must integrate with State Management Service and Semantic State Service.
 
@@ -1365,6 +1381,7 @@ The Playwright framework must integrate with State Management Service and Semant
 * isolate storage/session
 * wait for state signals
 * collect evidence and semantic trace
+* evaluate semantic assertions against observed state
 
 ## After a test
 
@@ -1377,9 +1394,7 @@ The Playwright framework must integrate with State Management Service and Semant
 
 ---
 
-# 21. Error Handling Strategy
-
-## Distinguish error types
+# 22. Error handling strategy
 
 Framework errors should classify:
 
@@ -1392,14 +1407,14 @@ Framework errors should classify:
 * environment/network failure
 * context grounding failure
 * retrieval dependency failure
-* **state-signal failure**
-* **mismatch-blocked execution**
-* **playbook incompatibility**
-* **healing-confidence-insufficient**
+* state-signal failure
+* mismatch-blocked execution
+* playbook incompatibility
+* healing-confidence-insufficient
 
 ### Error model
 
-```ts id="vp6a34"
+```ts
 type FrameworkErrorType =
   | 'locator_not_found'
   | 'action_timeout'
@@ -1416,13 +1431,11 @@ type FrameworkErrorType =
   | 'healing_confidence_low';
 ```
 
-This is the final-architecture-aligned error model.
-
 ---
 
-# 22. Forensic Evidence Capture Strategy
+# 23. Forensic evidence capture strategy
 
-## 22.1 Minimum evidence for every run
+## 23.1 Minimum evidence for every run
 
 * first meaningful screenshot
 * failure screenshot if failed
@@ -1431,7 +1444,7 @@ This is the final-architecture-aligned error model.
 * console logs
 * final DOM snapshot
 
-## 22.2 For important scenarios
+## 23.2 For important scenarios
 
 Also capture:
 
@@ -1442,9 +1455,9 @@ Also capture:
 * semantic trace
 * reasoning log
 
-## 22.3 Naming scheme
+## 23.3 Naming scheme
 
-```text id="g9v4gj"
+```text
 RUN-3001_step-04_after-click-submit.png
 RUN-3001_trace.zip
 RUN-3001_console.log
@@ -1452,7 +1465,7 @@ RUN-3001_semantic-trace.json
 RUN-3001_visual-diff.png
 ```
 
-## 22.4 Retrieval-friendly extensions
+## 23.4 Retrieval-friendly extensions
 
 Generate:
 
@@ -1462,15 +1475,11 @@ Generate:
 * healing summaries
 * playbook discovery summaries
 
-This matches the final evidence schema.
-
 ---
 
-# 23. Generated Test Promotion Workflow
+# 24. Generated test promotion workflow
 
-AI-generated assets should move through stages.
-
-## Stages
+AI-generated assets should move through stages:
 
 * generated draft
 * runtime validated
@@ -1502,9 +1511,9 @@ A generated Playwright spec should not become a permanent regression asset until
 
 ---
 
-# 24. Healing Strategy Inside the Framework
+# 25. Healing strategy inside the framework
 
-## 24.1 Runtime healing rules
+## 25.1 Runtime healing rules
 
 Allowed:
 
@@ -1519,9 +1528,9 @@ Not allowed automatically:
 * hidden pass after major UI/state shift
 * silent reuse of low-confidence healing in regression mode
 
-## 24.2 Healing result model
+## 25.2 Healing result model
 
-```ts id="ab1mjlwm"
+```ts
 type HealingResult = {
   attempted: boolean;
   successful: boolean;
@@ -1534,7 +1543,7 @@ type HealingResult = {
 };
 ```
 
-## 24.3 Final-architecture healing rules
+## 25.3 Healing rule
 
 Healing suggestions may use:
 
@@ -1550,11 +1559,9 @@ But only in:
 * diagnostic mode
 * post-run analysis
 
-This is stricter and more architecture-aligned than the previous version. 
-
 ---
 
-# 25. AI Generation Boundaries
+# 26. AI generation boundaries
 
 ## AI may generate
 
@@ -1576,13 +1583,13 @@ This is stricter and more architecture-aligned than the previous version.
 * uncontrolled live retrieval-driven runtime branching
 * silent healing persistence
 
-This is fully consistent with the final architecture.
+This remains a hard boundary.
 
 ---
 
-# 26. Runtime Modes
+# 27. Runtime modes
 
-## 26.1 Draft mode
+## 27.1 Draft mode
 
 Used for first-time generated tests.
 
@@ -1594,7 +1601,7 @@ Characteristics:
 * healing attempts allowed with review flags
 * limited authoring-time RAG allowed
 
-## 26.2 Diagnostic mode
+## 27.2 Diagnostic mode
 
 Used for:
 
@@ -1611,7 +1618,7 @@ Characteristics:
 * healing history lookup allowed
 * historical triage retrieval allowed
 
-## 26.3 Regression mode
+## 27.3 Regression mode
 
 Used for approved stable suites.
 
@@ -1623,15 +1630,13 @@ Characteristics:
 * tighter pass/fail rules
 * no uncontrolled retrieval-driven runtime changes
 
-This now exactly matches the final architecture’s dual-mode design.
-
 ---
 
-# 27. Example Internal Interfaces
+# 28. Example internal interfaces
 
 ## Application facade
 
-```ts id="ewuof5"
+```ts
 interface AppFacade {
   pages: {
     login: LoginPage;
@@ -1649,7 +1654,7 @@ interface AppFacade {
 
 ## Scenario executor
 
-```ts id="h7dh5r"
+```ts
 interface ScenarioExecutor {
   executeScenario(
     scenario: ScenarioDefinition,
@@ -1661,7 +1666,7 @@ interface ScenarioExecutor {
 
 ## Generated test compiler
 
-```ts id="5kwy6r"
+```ts
 interface GeneratedTestCompiler {
   compileScenarioToSpec(
     scenario: ScenarioDefinition,
@@ -1673,7 +1678,7 @@ interface GeneratedTestCompiler {
 
 ## Playbook-aware compiler
 
-```ts id="j9t6rf"
+```ts
 interface PlaybookAwareCompiler {
   compileFromContext(
     input: GroundedScenarioInput,
@@ -1684,11 +1689,11 @@ interface PlaybookAwareCompiler {
 
 ---
 
-# 28. Example Scenario-to-Code Conversion
+# 29. Example scenario-to-code conversion
 
 AI may produce a structured scenario like:
 
-```json id="o5n6al"
+```json
 {
   "name": "valid login succeeds",
   "flowRef": "FLOW-1001",
@@ -1718,11 +1723,9 @@ Using a context pack and state map that include:
 
 the compiler can render it into deterministic Playwright code.
 
-That is the ideal final-architecture-aligned hybrid pattern.
-
 ---
 
-# 29. Reporting Hooks
+# 30. Reporting hooks
 
 The framework should emit structured events during execution.
 
@@ -1736,10 +1739,11 @@ Examples:
 * `healing_attempted`
 * `evidence_captured`
 
-### New final-architecture events
+### Additional important events
 
 * `state_signal_wait_started`
 * `state_signal_wait_satisfied`
+* `state_observer_state_detected`
 * `context_pack_loaded`
 * `context_pack_validation_failed`
 * `reusable_asset_selected`
@@ -1757,7 +1761,7 @@ These should feed:
 
 ---
 
-# 30. Framework Configuration
+# 31. Framework configuration
 
 ## Global config
 
@@ -1791,11 +1795,11 @@ These should feed:
 
 ---
 
-# 31. Recommended Initial Technical Direction
+# 32. Recommended initial technical direction
 
 For your current stage, the best practical implementation is:
 
-## 31.1 Use TypeScript + Playwright
+## 32.1 Use TypeScript + Playwright
 
 Because:
 
@@ -1804,7 +1808,7 @@ Because:
 * easier for AI-generated test assets
 * strong fixture support
 
-## 31.2 Use structured scenario + compiled spec model
+## 32.2 Use structured scenario + compiled spec model
 
 Not only raw direct code generation.
 
@@ -1815,52 +1819,50 @@ Reason:
 * easier to recompile/update later
 * cleaner bridge between agent output and execution
 
-## 31.3 Use page objects + flows + semantic assertions + state-aware waits
+## 32.3 Use page objects + flows + semantic assertions + state-aware waits
 
-This is now the best maintainability pattern.
+This is the best maintainability pattern.
 
-## 31.4 Keep Graph-RAG primarily pre-runtime
+## 32.4 Keep Graph-RAG primarily pre-runtime
 
-Retrieval and grounding should mostly happen **before execution**.
-Stable regression runs should not behave like live agentic browsing sessions.
+Retrieval and grounding should mostly happen **before execution**. Stable regression runs should not behave like live agentic browsing sessions.
 
-## 31.5 Treat diagnostic mode as a producer of deterministic knowledge
+## 32.5 Treat diagnostic mode as a producer of deterministic knowledge
 
 Diagnostic execution should discover, validate, and export deterministic playbooks for future stable runs.
 
-This is the biggest new technical direction implied by the final architecture.
-
 ---
 
-# 32. Minimal Framework Components for V1
+# 33. Minimal framework components for V1
 
 Build these first:
 
 1. Session Manager
 2. Step Executor
-3. State Signal Wait Engine
-4. Locator Resolver
-5. Evidence Collector
-6. Semantic Assertion Engine
-7. Retrieval Adapter
-8. Context Pack Consumer
-9. State Map Adapter
-10. Scenario Grounding Resolver
-11. Scenario Compiler
-12. App Facade
-13. Login Page Object
-14. Login Flow
-15. Auth Assertions
-16. State Assertions
-17. Test Metadata Support
-18. Healing Adapter
-19. MCP/Execution adapters
+3. Runtime State Observer
+4. State Signal Wait Engine
+5. Locator Resolver
+6. Evidence Collector
+7. Semantic Assertion Engine
+8. Retrieval Adapter
+9. Context Pack Consumer
+10. State Map Adapter
+11. Scenario Grounding Resolver
+12. Scenario Compiler
+13. App Facade
+14. Login Page Object
+15. Login Flow
+16. Auth Assertions
+17. State Assertions
+18. Test Metadata Support
+19. Healing Adapter
+20. MCP/Execution adapters
 
-This is the minimum framework set that fits the final architecture.
+This is the minimum serious framework set that fits the final architecture.
 
 ---
 
-# 33. Final Framework Summary
+# 34. Final framework summary
 
 The Playwright hybrid framework should be:
 
@@ -1882,6 +1884,4 @@ That gives you a framework much stronger than:
 * raw Playwright scripts
 * raw AI browser control
 * ad hoc generated tests
-
-It becomes a **state-aware, Graph-RAG-grounded, deterministic execution framework** that matches the final architecture. 
 

@@ -1,24 +1,15 @@
-Below is the **rewritten Part 2 — Service Design**, updated to fit the **final architectural design**.
+I agree with most of Gemini’s comments. The best updates are:
 
-I kept the strongest parts of your previous service design:
+* make the **distributed understanding split** even more explicit as a deliberate anti-hallucination design
+* make **reranking** in Retrieval Service a required internal subcomponent, not just an optional implementation detail
+* strengthen **Browser Worker** so state-aware assertions and React-ready signals are clearly native runtime behavior
+* strengthen **Triage & Confidence Service** so confidence scoring and reasoning-backed explanation are explicit first-class outputs
+* reinforce **Playbook Service** as the hardening layer between diagnostic discovery and deterministic regression
+* emphasize **Evidence Service schema** as a core dependency for fast debugging and reliable HITL review
 
-* clear separation between orchestration, agent runtime, retrieval, graph, execution, and evidence
-* explicit Graph-RAG ownership
-* deterministic execution boundary
-* policy and observability separation
+I did **not** change the architecture shape dramatically, because the service design was already strong. The comments mostly sharpen and clarify the existing design rather than replace it. The original Part 2 already had the right service boundaries, Graph-RAG ownership, execution split, and forensic evidence direction. 
 
-I updated it to reflect the final architecture changes in these areas:
-
-* **distributed understanding** instead of a single broad ingestion/intake flow
-* **semantic state map** as a first-class service concern
-* **requirement mismatch detection**
-* **dual execution modes**: diagnostic vs regression
-* **forensic self-healing** and persistent healing logs
-* **deterministic playbook export**
-* **forensic-grade evidence schema**
-* **local shift-left triggers** such as pre-commit hook and optional watch mode
-
-Your prior service design was already strong on RAG, Retrieval Service, Knowledge Graph Service, and deterministic execution. The main gap was that it did not yet promote **artifact fusion**, **state-map generation**, **healing**, **playbooks**, and **local triggers** into explicit service responsibilities. 
+Below is the **rewritten Part 2 — Service Design**, updated with the comments I think are correct.
 
 ---
 
@@ -28,17 +19,19 @@ Your prior service design was already strong on RAG, Retrieval Service, Knowledg
 
 ### Final Architecture-Aligned Version
 
+#### Updated with review refinements
+
 This section defines the **service-by-service implementation design** for the AI-powered QA platform.
 
 It translates the architecture into deployable components with clear responsibilities, interfaces, ownership boundaries, and runtime behavior.
 
-This version updates the earlier service design so it now fully matches the final architecture with:
+This version matches the final architecture with:
 
 * folder-based case ingestion
 * browser-readable URL ingestion
 * distributed understanding
 * semantic state maps
-* mismatch detection
+* requirement mismatch detection
 * hybrid Graph-RAG
 * deterministic and diagnostic execution modes
 * forensic self-healing
@@ -48,7 +41,7 @@ This version updates the earlier service design so it now fully matches the fina
 
 ---
 
-# 1. Service Design Goals
+# 1. Service design goals
 
 The service design must achieve these goals:
 
@@ -74,7 +67,31 @@ The service design must achieve these goals:
 
 ---
 
-# 2. Top-Level Service Map
+# 2. Strategic service design win
+
+The most important service-level decision is the **strict separation of distributed understanding responsibilities**.
+
+Instead of one overloaded “intake” or “analysis” service, the design deliberately separates:
+
+* **Distributed Understanding Service** for ingestion, normalization, artifact fusion, and case understanding
+* **Semantic State Service** for generating semantic state maps, transitions, and fingerprints
+* **Mismatch Detection Service** for identifying contradictions and unsupported expectations before authoring or execution
+
+## Why this works
+
+This avoids **context stuffing**, which is one of the main causes of hallucination and low-precision QA reasoning.
+
+It means:
+
+* one service focuses on what was ingested
+* another focuses on the state model implied by those artifacts
+* another focuses on where those sources disagree
+
+That is the right service split for multimodal local QA.
+
+---
+
+# 3. Top-level service map
 
 The platform should be split into the following core services:
 
@@ -108,13 +125,13 @@ Supporting infrastructure:
 * vector index / retrieval index
 * queue / event bus
 
-This is the main structural change from the earlier service design: the final architecture now deserves explicit service ownership for **distributed understanding**, **semantic state maps**, **mismatch detection**, **healing**, **playbooks**, and **local triggers**. 
+This core service map remains correct. 
 
 ---
 
-# 3. High-Level Runtime Topology
+# 4. High-level runtime topology
 
-```text id="k9y7n8"
+```text id="c26j4d"
 +-------------------------------------------------------------+
 | Request Gateway / CLI / Local UI                            |
 +----------------------------+--------------------------------+
@@ -130,7 +147,7 @@ This is the main structural change from the earlier service design: the final ar
 | QA Orchestration Service                                     |
 | workflow, state machine, approvals, policy checkpoints       |
 +-------------+----------------------+-------------------------+
-              |                      | 
+              |                      |
               |                      v
               |         +-------------------------------+
               |         | Policy & Approval Service     |
@@ -139,7 +156,7 @@ This is the main structural change from the earlier service design: the final ar
               v
 +-------------------------------------------------------------+
 | Distributed Understanding Service                            |
-| intake + artifact fusion + requirement mapping prep          |
+| intake + normalization + artifact fusion + case understanding|
 +-------------+----------------------+-------------------------+
               |                      |
               v                      v
@@ -155,7 +172,7 @@ This is the main structural change from the earlier service design: the final ar
 +-------------------------------------------------------------+
 | Knowledge & Context Layer                                    |
 | Knowledge Graph Service + Retrieval Service                  |
-| graph expansion + hybrid retrieval + context packs           |
+| graph expansion + hybrid retrieval + reranking + context pack|
 +----------------------------+--------------------------------+
                              |
                              v
@@ -186,7 +203,8 @@ This is the main structural change from the earlier service design: the final ar
                               v
 +-------------------------------------------------------------+
 | Evidence Service                                             |
-| screenshots, traces, logs, semantic trace, visual diffs     |
+| screenshots, traces, logs, semantic trace, visual diffs,     |
+| reasoning logs, bundles                                      |
 +----------------------------+--------------------------------+
                              |
                +-------------+-------------+
@@ -203,24 +221,23 @@ This is the main structural change from the earlier service design: the final ar
 | export deterministic       |   | defect-quality packets      |
 | playbooks from diagnostics |   +-----------------------------+
 +----------------------------+
-
 ```
 
 ---
 
-# 4. Core Service Design Principles
+# 5. Core service design principles
 
-## 4.1 Distributed Understanding Ownership
+## 5.1 Distributed understanding ownership
 
 The final architecture requires understanding to be split across separate responsibilities:
 
-* **Distributed Understanding Service** handles raw intake, normalization, and artifact fusion
+* **Distributed Understanding Service** handles raw intake, normalization, artifact fusion, and case understanding
 * **Semantic State Service** produces semantic state maps
 * **Mismatch Detection Service** compares fused artifacts and states to detect pre-run warnings
 
-This is better than overloading one ingestion service.
+This is not just a style choice. It is a reliability choice.
 
-## 4.2 Graph-RAG Ownership Split
+## 5.2 Graph-RAG ownership split
 
 ### Distributed Understanding Service
 
@@ -237,7 +254,7 @@ Owns the runtime side of Graph-RAG:
 
 * search
 * graph expansion orchestration
-* reranking
+* **reranking**
 * context packs
 * retrieval policy
 * retrieval logs
@@ -250,12 +267,13 @@ Owns:
 * state-map linkage
 * requirement/test/evidence lineage
 * bounded graph expansion APIs
+* impact lookup
 
 ### Agent Runtime Service
 
 Consumes grounded context packs instead of assembling raw context itself.
 
-## 4.3 Dual Execution Ownership
+## 5.3 Dual execution ownership
 
 ### Diagnostic Mode
 
@@ -278,13 +296,15 @@ Allows:
 
 Bridges the two by exporting stable discoveries from diagnostic mode into reusable deterministic playbooks.
 
----
-
-# 5. Service-by-Service Design
+This is one of the strongest parts of the design and should remain explicit.
 
 ---
 
-## 5.1 Request Gateway Service
+# 6. Service-by-service design
+
+---
+
+## 6.1 Request Gateway Service
 
 ### Purpose
 
@@ -299,29 +319,6 @@ Entry point for all inbound QA requests from UI, CLI, or API.
 * normalize request payload
 * persist initial request record
 * pass request to orchestration
-
-### Example input
-
-```json id="d43kff"
-{
-  "cases": ["login-flow", "business-registration"],
-  "env": "UAT",
-  "channels": ["web", "api"],
-  "policyProfile": "standard-controlled",
-  "sourceUrls": [
-    "https://internal-docs.example.com/story/US-101"
-  ]
-}
-```
-
-### Example output
-
-```json id="saapco"
-{
-  "requestId": "REQ-1001",
-  "status": "accepted"
-}
-```
 
 ### Internal responsibilities
 
@@ -352,7 +349,7 @@ Stores:
 
 ---
 
-## 5.2 Trigger Service
+## 6.2 Trigger Service
 
 ### Purpose
 
@@ -364,6 +361,7 @@ Handle local shift-left triggers such as pre-commit hooks, optional watch mode, 
 * classify trigger type
 * inspect changed files or trigger metadata
 * map changed files to likely cases
+* use graph-assisted impact analysis when available
 * create bounded smoke-test requests
 * send derived request to Request Gateway / Orchestration
 * preserve local trigger audit trail
@@ -373,13 +371,6 @@ Handle local shift-left triggers such as pre-commit hooks, optional watch mode, 
 * `pre_commit`
 * `watch_mode`
 * `manual_local`
-
-### Inputs
-
-* git diff file list
-* trigger source
-* environment
-* optional developer-selected case scope
 
 ### Outputs
 
@@ -398,9 +389,11 @@ Handle local shift-left triggers such as pre-commit hooks, optional watch mode, 
 * pre-commit should be bounded by policy
 * should not bypass request normalization
 
+This aligns well with the shift-left design and should stay.
+
 ---
 
-## 5.3 QA Orchestration Service
+## 6.3 QA Orchestration Service
 
 ### Purpose
 
@@ -439,53 +432,6 @@ Central workflow coordinator for the whole QA lifecycle.
 18. approval handling
 19. completion
 
-### Updated internal state machine
-
-```text id="4r9cz4"
-PENDING
--> VALIDATING_INPUT
--> INGESTING_ARTIFACTS
--> FUSING_ARTIFACTS
--> BUILDING_STATE_MAP
--> DETECTING_MISMATCHES
--> INDEXING_AND_LINKING
--> BUILDING_CONTEXT
--> GENERATING_STRATEGY
--> GENERATING_TESTS
--> PREPARING_STATE
--> EXECUTING
--> FINALIZING_EVIDENCE
--> ANALYZING_HEALING
--> ANALYZING_RESULTS
--> DRAFTING_DEFECTS
--> EXPORTING_PLAYBOOK (optional)
--> WAITING_APPROVAL (optional)
--> COMPLETED / FAILED / PARTIAL
-```
-
-### Persistence
-
-Stores:
-
-* workflow state
-* timestamps per stage
-* retry counts
-* blocking errors
-* linked run IDs
-* approval checkpoints
-
-### Events consumed
-
-* `qa.request.accepted`
-* `qa.trigger.translated`
-* `understanding.completed`
-* `state_map.completed`
-* `mismatch.detected`
-* `retrieval.context_pack.ready`
-* `execution.completed`
-* `triage.completed`
-* `approval.decision.recorded`
-
 ### Events produced
 
 * `workflow.stage.started`
@@ -499,13 +445,13 @@ Stores:
 
 ### Non-functional notes
 
-* should support resumable workflows
-* must be idempotent per stage
-* must preserve causal ordering between mismatch detection and execution
+* resumable workflows
+* idempotent stages
+* preserve causal ordering between mismatch detection and execution
 
 ---
 
-## 5.4 Distributed Understanding Service
+## 6.4 Distributed Understanding Service
 
 ### Purpose
 
@@ -524,15 +470,21 @@ Perform raw ingestion, artifact classification, artifact fusion, and structured 
 * produce retrieval-ready chunks and summaries
 * preserve provenance
 
-### This service replaces the earlier single broad ingestion interpretation path.
+### Why this service matters
 
-### Inputs
+This service is the operational home of **Artifact Fusion**.
 
-* case names
-* folder roots
-* source URLs
-* ingestion policy
-* auth profiles
+It is not just a parser wrapper.
+It merges:
+
+* text artifacts
+* visual artifacts
+* browser-captured pages
+* rule documents
+* defects
+* expected-result material
+
+into a coherent case understanding that downstream services can trust.
 
 ### Outputs
 
@@ -578,13 +530,13 @@ Stores:
 
 ### Non-functional notes
 
-* should support re-ingestion if files change
-* should keep immutable snapshots when required
-* chunk quality strongly affects downstream RAG quality
+* support re-ingestion if files change
+* keep immutable snapshots when required
+* chunk quality strongly affects downstream retrieval
 
 ---
 
-## 5.5 Semantic State Service
+## 6.5 Semantic State Service
 
 ### Purpose
 
@@ -600,13 +552,6 @@ Generate and manage semantic state maps for each case.
 * maintain state map versions
 * maintain element fingerprints for forensic healing
 * expose state-map lookups for execution and retrieval
-
-### Inputs
-
-* fused artifacts
-* requirement refs
-* page and API refs
-* screenshots and wireframe interpretations
 
 ### Outputs
 
@@ -642,12 +587,14 @@ Stores:
 ### Non-functional notes
 
 * state maps should be versioned
-* generated state maps must preserve source refs
-* should support later linkage to visual diff and playbook export
+* preserve source refs
+* support later linkage to visual diff and playbook export
+
+This service should continue to be the technical “common knowledge” layer for the platform.
 
 ---
 
-## 5.6 Mismatch Detection Service
+## 6.6 Mismatch Detection Service
 
 ### Purpose
 
@@ -662,13 +609,6 @@ Detect requirement mismatches across fused artifacts and semantic state maps bef
 * classify mismatch severity
 * surface warnings and possible execution blockers
 * provide mismatch data to retrieval and agents
-
-### Inputs
-
-* fused artifacts
-* semantic state maps
-* expected-result docs
-* known rules and requirements
 
 ### Outputs
 
@@ -685,13 +625,15 @@ Detect requirement mismatches across fused artifacts and semantic state maps bef
 
 ### Non-functional notes
 
-* should be deterministic and explainable
+* deterministic and explainable
 * all mismatches must include source refs
 * should run before authoring and before execution
 
+This is one of the most important reliability services in the whole system.
+
 ---
 
-## 5.7 Knowledge Graph Service
+## 6.7 Knowledge Graph Service
 
 ### Purpose
 
@@ -709,35 +651,6 @@ Store the structured relationships that power traceability and retrieval-time gr
 * store semantic state map relationships
 * store healing and playbook lineage where relevant
 
-### Entities handled
-
-* case
-* artifact
-* requirement
-* page
-* UI element
-* UI state
-* transition
-* API endpoint
-* defect
-* test asset
-* run
-* evidence
-* defect draft
-* review decision
-* learning signal
-* playbook
-* mismatch warning
-
-### Example graph operations
-
-* upsert artifact node
-* link requirement to state/page/API
-* link state to test/assertion
-* link run to evidence and defect
-* link playbook to originating diagnostic run
-* link healing event to unstable element
-
 ### Non-functional notes
 
 * graph queries should be fast for lineage and impact lookup
@@ -746,7 +659,7 @@ Store the structured relationships that power traceability and retrieval-time gr
 
 ---
 
-## 5.8 Retrieval Service
+## 6.8 Retrieval Service
 
 ### Purpose
 
@@ -758,50 +671,24 @@ Provide full Graph-RAG runtime capabilities for agent reasoning.
 * support hybrid retrieval
 * retrieve candidate context by query and filters
 * call Knowledge Graph Service for expansion
-* rerank retrieved items
+* **rerank retrieved items**
 * build task-specific context packs
 * enforce retrieval policies
 * log retrieval queries and selected context
 * include state-map refs, mismatch warnings, playbook refs, and healing history where appropriate
 
-### Inputs
+### Reviewer refinement adopted
 
-* retrieval mode / task type
-* query intent
-* case ID
-* stage context
-* graph expansion policy
-* filters such as:
+The review is correct: reranking should not be treated as optional.
 
-  * current case only
-  * include history or not
-  * approved-only assets
-  * include mismatch warnings
-  * include healing logs
-  * include playbooks
-  * execution mode awareness
-
-### Outputs
-
-* ranked context candidates
-* graph-expanded context
-* final metadata-rich context pack
-
-### Retrieval modes
-
-* understanding
-* mapping
-* strategy
-* authoring
-* triage
-* defect drafting
-* learning
+In a folder-first system, artifacts can be noisy, redundant, incomplete, or unevenly structured.
+So the Retrieval Service should have a dedicated internal **Reranking Engine**.
 
 ### Updated internal subcomponents
 
 * candidate retriever
 * graph expansion orchestrator
-* reranker
+* **reranker**
 * context pack builder
 * retrieval policy engine
 * retrieval query logger
@@ -816,13 +703,15 @@ Provide full Graph-RAG runtime capabilities for agent reasoning.
 
 ### Non-functional notes
 
-* should support low latency
+* support low latency
 * retrieval output must be bounded and stage-aware
-* should prefer approved/high-quality sources when relevant
+* prefer approved/high-quality sources when relevant
+
+This is the context backbone of the platform and should be treated as such.
 
 ---
 
-## 5.9 Agent Runtime Service
+## 6.9 Agent Runtime Service
 
 ### Purpose
 
@@ -852,50 +741,8 @@ Host the multi-agent reasoning layer.
 
 ### Important correction
 
-The final architecture no longer treats intake as one overloaded step. Agent Runtime must respect distributed understanding boundaries.
-
-### Inputs
-
-* workflow stage request
-* run context
-* artifact references
-* retrieval context pack
-* state map refs
-* mismatch refs
-* policy constraints
-
-### Outputs
-
-* case summary
-* requirement mappings
-* semantic mapping proposals
-* strategy
-* generated test assets
-* triage output
-* healing assessment
-* defect draft
-* learning updates
-
-### Internal components
-
-* prompt builder
-* context pack consumer / validator
-* agent registry
-* tool invocation adapter
-* response validator
-* confidence estimator
-
-### Persistence
-
-* ephemeral run memory
-* optional persisted reasoning summary
-* agent execution metadata
-
-### Events produced
-
-* `agent.output.generated`
-* `agent.tool.called`
-* `agent.step.failed`
+Agent Runtime must respect distributed understanding boundaries.
+It should not collapse all upstream understanding into one generalized reasoning step.
 
 ### Non-functional notes
 
@@ -905,7 +752,7 @@ The final architecture no longer treats intake as one overloaded step. Agent Run
 
 ---
 
-## 5.10 Test Asset Service
+## 6.10 Test Asset Service
 
 ### Purpose
 
@@ -919,7 +766,7 @@ Manage generated and reviewed QA assets as governed artifacts.
 * store API specs
 * store semantic assertion modules
 * store reusable flow modules
-* store deterministic playbooks linkage
+* store deterministic playbook linkage
 * version assets
 * track asset lifecycle
 * provide latest approved assets and playbooks
@@ -933,13 +780,6 @@ Manage generated and reviewed QA assets as governed artifacts.
 * deprecated
 * retired
 
-### Outputs
-
-* asset IDs
-* version IDs
-* reusable asset summaries for retrieval
-* playbook links
-
 ### Non-functional notes
 
 * strong versioning from day one
@@ -948,7 +788,7 @@ Manage generated and reviewed QA assets as governed artifacts.
 
 ---
 
-## 5.11 Execution Service
+## 6.11 Execution Service
 
 ### Purpose
 
@@ -965,30 +805,12 @@ Coordinate deterministic and diagnostic execution of generated tests.
 * trigger healing analysis when needed
 * request playbook export when diagnostic discoveries are promotable
 
-### Inputs
-
-* approved/draft test assets
-* target environment
-* execution mode
-* state setup requirements
-* evidence policy
-* optional playbook refs
-
 ### Outputs
 
 * run record
 * step results
 * execution status
 * evidence refs
-
-### Internal subcomponents
-
-* run planner
-* mode selector
-* worker dispatcher
-* session tracker
-* timeout/retry manager
-* result aggregator
 
 ### Events produced
 
@@ -1003,11 +825,13 @@ Coordinate deterministic and diagnostic execution of generated tests.
 
 * regression mode must remain deterministic
 * diagnostic mode may allow richer evidence and discovery
-* must isolate web and API run types cleanly
+* web and API execution must remain cleanly isolated
+
+This service remains one of the strongest parts of the design.
 
 ---
 
-## 5.12 Browser Worker Service
+## 6.12 Browser Worker Service
 
 ### Purpose
 
@@ -1019,18 +843,23 @@ Run web UI tests in isolated browser sessions.
 * load environment base URL
 * authenticate with approved profile
 * execute Playwright-backed steps
-* perform state-aware waits
+* perform **state-aware waits natively**
+* implement **state-aware assertions natively**
 * capture screenshot/video/trace/console/network
 * support diagnostic or regression mode behavior
 
-### Inputs
+### Reviewer refinement adopted
 
-* browser execution spec
-* session config
-* evidence config
-* credentials profile
-* state-map refs
-* optional playbook refs
+The review is correct: the Browser Worker must not rely on naive URL changes or fixed sleeps as its primary runtime model.
+
+It should natively support **React-ready / state-aware runtime signals**, such as:
+
+* component mount completion
+* spinner disappearance
+* button enabled state
+* validation message visibility
+* route stabilization
+* async render completion
 
 ### Outputs
 
@@ -1041,13 +870,15 @@ Run web UI tests in isolated browser sessions.
 
 ### Non-functional notes
 
-* can scale horizontally
+* horizontally scalable
 * state-aware waiting is required for React-style async UIs
 * regression mode must not behave like uncontrolled agent exploration
 
+This is a real implementation requirement, not just a nice-to-have.
+
 ---
 
-## 5.13 API Runner Worker Service
+## 6.13 API Runner Worker Service
 
 ### Purpose
 
@@ -1061,20 +892,6 @@ Run API scenario tests in isolated runtime contexts.
 * capture request/response evidence
 * return structured assertion outcomes
 
-### Inputs
-
-* API scenario definition
-* auth profile
-* headers/body templates
-* assertion set
-
-### Outputs
-
-* response summaries
-* assertion outcomes
-* evidence refs
-* runtime logs
-
 ### Non-functional notes
 
 * stateless between runs
@@ -1083,7 +900,7 @@ Run API scenario tests in isolated runtime contexts.
 
 ---
 
-## 5.14 Evidence Service
+## 6.14 Evidence Service
 
 ### Purpose
 
@@ -1116,6 +933,17 @@ Central storage and indexing for forensic-grade run evidence.
 * reasoning log
 * report bundle
 
+### Reviewer refinement adopted
+
+The review is correct: the **Evidence Service schema** is one of the most important things to stabilize early.
+
+This service should become the debugging backbone for the rest of implementation because it lets you inspect:
+
+* what the platform saw
+* what the platform believed
+* what the platform did
+* why the platform concluded pass/fail/defect
+
 ### Outputs
 
 * evidenceRef
@@ -1124,13 +952,13 @@ Central storage and indexing for forensic-grade run evidence.
 
 ### Non-functional notes
 
-* evidence must be immutable once finalized
+* evidence immutable once finalized
 * retention policy configurable
 * only summaries, not heavy raw blobs, should normally feed retrieval
 
 ---
 
-## 5.15 Healing Service
+## 6.15 Healing Service
 
 ### Purpose
 
@@ -1147,16 +975,6 @@ Perform forensic self-healing analysis and manage persistent healing logs.
 * surface repeated instability patterns
 * feed approved healing knowledge into future runs
 
-### Inputs
-
-* failed step result
-* DOM snapshot
-* screenshot
-* fingerprint ref
-* state-map ref
-* execution mode
-* policy profile
-
 ### Outputs
 
 * healing proposal
@@ -1170,9 +988,11 @@ Perform forensic self-healing analysis and manage persistent healing logs.
 * persistent update requires governance
 * should support reuse of prior healing history
 
+This remains correct and should stay tightly separated from Triage.
+
 ---
 
-## 5.16 Playbook Service
+## 6.16 Playbook Service
 
 ### Purpose
 
@@ -1187,12 +1007,18 @@ Export, store, and manage deterministic playbooks derived from successful diagno
 * link playbooks to assets and scenarios
 * provide playbook summaries for retrieval
 
-### Inputs
+### Reviewer refinement adopted
 
-* diagnostic run results
-* state signals
-* evidence
-* approval status if needed
+The review is correct: this service is the **hardening layer** between AI exploration and stable automation.
+
+When diagnostic mode discovers:
+
+* stable selectors
+* stable state signals
+* stable transition timing
+* repeatable safe execution paths
+
+this service should export them into a deterministic playbook so regression mode does not have to “rethink” the same problem.
 
 ### Outputs
 
@@ -1207,7 +1033,7 @@ Export, store, and manage deterministic playbooks derived from successful diagno
 
 ---
 
-## 5.17 State Management Service
+## 6.17 State Management Service
 
 ### Purpose
 
@@ -1223,13 +1049,13 @@ Provide deterministic environment and data preparation.
 
 ### Non-functional notes
 
-* must be heavily policy-controlled
+* heavily policy-controlled
 * action catalog should be declarative where possible
 * state mutations should remain minimal and explicit
 
 ---
 
-## 5.18 Triage & Confidence Service
+## 6.18 Triage & Confidence Service
 
 ### Purpose
 
@@ -1241,9 +1067,23 @@ Analyze execution results and produce structured failure classification with con
 * classify failure type
 * score evidence quality
 * estimate confidence
+* explain **why** the conclusion was reached
 * recommend next action
 * use retrieval support when needed
 * include healing context and reasoning logs when relevant
+
+### Reviewer refinement adopted
+
+This service should explicitly prioritize **confidence scoring** as a first-class output.
+
+If it concludes a run failed, it should explain:
+
+* what facts were observed
+* how those facts support the classification
+* which reasoning logs were used
+* which evidence refs support the conclusion
+
+This makes HITL review much faster.
 
 ### Inputs
 
@@ -1259,6 +1099,7 @@ Analyze execution results and produce structured failure classification with con
 
 * triage classification
 * confidence score
+* confidence reason
 * reasoning summary
 * suggested action
 * supporting refs
@@ -1269,9 +1110,11 @@ Analyze execution results and produce structured failure classification with con
 * classification taxonomy must be stable
 * should downgrade to review if evidence is incomplete
 
+This is a key production-quality service, not just a convenience layer.
+
 ---
 
-## 5.19 Defect Draft Service
+## 6.19 Defect Draft Service
 
 ### Purpose
 
@@ -1287,12 +1130,6 @@ Generate internal defect-quality packets.
 * stage draft for approval if needed
 * retrieve similar prior defect drafts for drafting assistance
 
-### Outputs
-
-* defectDraftId
-* draft content
-* approval requirement flag
-
 ### Current-stage boundary
 
 Internal draft only.
@@ -1300,7 +1137,7 @@ No automatic external ticket submission yet.
 
 ---
 
-## 5.20 Policy & Approval Service
+## 6.20 Policy & Approval Service
 
 ### Purpose
 
@@ -1329,7 +1166,7 @@ Enforce action policy and support human-in-the-loop checkpoints.
 
 ---
 
-## 5.21 Audit & Observability Service
+## 6.21 Audit & Observability Service
 
 ### Purpose
 
@@ -1373,15 +1210,15 @@ Provide centralized audit trail, metrics, tracing, and operational visibility.
 
 ### Non-functional notes
 
-* avoid storing raw secrets or sensitive bodies
+* avoid raw secrets or sensitive bodies
 * retrieval and context-pack logging remain critical
 * healing and playbook logs should be first-class observable records
 
 ---
 
-# 6. Service Interaction Flow
+# 7. Service interaction flow
 
-## 6.1 Main synchronous vs asynchronous split
+## 7.1 Synchronous vs asynchronous split
 
 ### Synchronous
 
@@ -1413,11 +1250,9 @@ Use async/event-driven flow for:
 * defect drafting
 * playbook export
 
----
+## 7.2 Primary end-to-end flow
 
-## 6.2 Primary end-to-end flow
-
-```text id="etiofi"
+```text id="ht4yc0"
 Trigger / Request Gateway
   -> QA Orchestration
     -> Distributed Understanding Service
@@ -1445,50 +1280,50 @@ Trigger / Request Gateway
 
 ---
 
-# 7. Service Boundaries and Why They Matter
+# 8. Service boundaries and why they matter
 
-## 7.1 Orchestration vs Agent Runtime
+## 8.1 Orchestration vs Agent Runtime
 
 * Orchestration = workflow engine
 * Agent Runtime = reasoning engine
 
-## 7.2 Distributed Understanding vs Semantic State Service
+## 8.2 Distributed Understanding vs Semantic State Service
 
 * Distributed Understanding = ingest and fuse artifacts
 * Semantic State Service = turn fused meaning into state models
 
-## 7.3 Semantic State Service vs Mismatch Detection
+## 8.3 Semantic State Service vs Mismatch Detection
 
 * State Service = produces state truth model
 * Mismatch Detection = compares truth sources and flags conflicts
 
-## 7.4 Knowledge Graph vs Retrieval
+## 8.4 Knowledge Graph vs Retrieval
 
 * Graph = explicit relationships
 * Retrieval = search + expansion + reranking + context packs
 
-## 7.5 Execution vs Workers
+## 8.5 Execution vs Workers
 
 * Execution Service plans and coordinates
 * Workers actually run web/API sessions
 
-## 7.6 Healing vs Triage
+## 8.6 Healing vs Triage
 
 * Healing analyzes recoverable UI shifts
 * Triage explains overall test failure cause
 
-## 7.7 Diagnostic vs Regression
+## 8.7 Diagnostic vs Regression
 
 * Diagnostic = discovery
 * Regression = deterministic enforcement
 
-This separation is now a core architectural requirement.
+This separation is one of the strongest parts of the service design.
 
 ---
 
-# 8. Suggested Deployment Shape
+# 9. Suggested deployment shape
 
-## 8.1 Core services
+## 9.1 Core services
 
 * Request Gateway
 * Trigger Service
@@ -1510,12 +1345,12 @@ This separation is now a core architectural requirement.
 * Policy & Approval
 * Audit & Observability
 
-## 8.2 Worker pools
+## 9.2 Worker pools
 
 * Browser worker pool
 * API runner worker pool
 
-## 8.3 Shared stores
+## 9.3 Shared stores
 
 * relational DB
 * graph DB
@@ -1525,152 +1360,7 @@ This separation is now a core architectural requirement.
 
 ---
 
-# 9. Service Storage Responsibilities
-
-| Service                   | Primary Storage                         |
-| ------------------------- | --------------------------------------- |
-| Request Gateway           | relational DB                           |
-| Trigger Service           | relational DB / audit log               |
-| QA Orchestration          | relational DB / workflow store          |
-| Distributed Understanding | relational DB + object storage          |
-| Semantic State Service    | relational DB + graph links             |
-| Mismatch Detection        | relational DB                           |
-| Knowledge Graph           | graph DB                                |
-| Retrieval                 | vector/search index + retrieval logs    |
-| Agent Runtime             | ephemeral + audit store                 |
-| Test Asset                | relational DB + object storage          |
-| Execution                 | relational DB                           |
-| Browser Worker            | ephemeral session artifacts             |
-| API Runner Worker         | ephemeral execution artifacts           |
-| Evidence                  | object storage + metadata DB            |
-| Healing                   | relational DB + object storage for logs |
-| Playbook                  | relational DB + object storage          |
-| State Management          | relational DB / action log              |
-| Triage & Confidence       | relational DB                           |
-| Defect Draft              | relational DB + object storage          |
-| Policy & Approval         | relational DB                           |
-| Audit & Observability     | log/trace/metrics stores                |
-
----
-
-# 10. Failure Handling Strategy by Service
-
-## Request Gateway
-
-* reject invalid requests fast
-* idempotency key support recommended
-
-## Trigger Service
-
-* degrade gracefully on bad git diff or file mapping
-* allow manual override path
-
-## Distributed Understanding
-
-* isolate artifact-level failures
-* continue partial ingestion where policy allows
-
-## Semantic State Service
-
-* surface incomplete state maps as warnings
-* version partially generated outputs if useful
-
-## Mismatch Detection
-
-* classify blockers vs non-blocking warnings
-* never silently suppress mismatches
-
-## Retrieval
-
-* return bounded partial context if some sources fail
-* log retrieval degradation
-
-## Agent Runtime
-
-* validate output shape before returning
-* fail fast if required context pack is missing or malformed
-
-## Execution
-
-* distinguish infra failure vs test failure
-* preserve evidence even on crash
-
-## Healing
-
-* never silently convert low-confidence healing into success
-* escalate when confidence is weak
-
-## Triage
-
-* downgrade to human review if evidence is incomplete
-
-## Playbook
-
-* never auto-promote unstable discoveries into regression baseline
-
----
-
-# 11. Scalability Strategy
-
-## Horizontal scale candidates
-
-* Request Gateway
-* Trigger Service
-* Distributed Understanding
-* Retrieval
-* Agent Runtime
-* Browser workers
-* API workers
-
-## State-heavy services
-
-* Orchestration
-* Policy & Approval
-* Knowledge Graph
-* Semantic State Service
-* Evidence metadata
-* Audit
-
-## Early bottlenecks
-
-* browser workers
-* LLM/agent runtime latency
-* retrieval index quality
-* graph expansion latency
-* evidence volume
-* visual diff generation
-
----
-
-# 12. Security Design Across Services
-
-## Authentication and identity
-
-Each service should authenticate with service-to-service identity.
-
-## Authorization
-
-* policy service decides action rights
-* workers run only with approved profiles
-* browser URL ingestion limited to approved domains
-* retrieval may be filtered by environment, asset status, or approval state
-* regression mode must not use unapproved playbooks or healing updates
-
-## Secret handling
-
-* credentials referenced by profile
-* no raw secrets in prompts
-* no secret values in logs/evidence unless masked and approved
-
-## Environment controls
-
-* UAT/test environments only by default
-* stronger approval for sensitive environments
-* local trigger workflows still obey policy
-
----
-
-# 13. Recommended Initial Build Order
+# 10. Recommended initial build order
 
 ## Phase A — Core workflow backbone
 
@@ -1695,7 +1385,7 @@ Each service should authenticate with service-to-service identity.
 13. Execution Service
 14. Browser Worker
 15. API Runner Worker
-16. Evidence Service
+16. **Evidence Service**
 17. State Management
 
 ## Phase D — Intelligence and hardening
@@ -1706,11 +1396,17 @@ Each service should authenticate with service-to-service identity.
 21. Defect Draft
 22. Playbook Service
 
-This build order better matches the final architecture than the earlier RAG-only sequence. 
+### Refinement from review
+
+This build order is still correct, but one practical note from the review is worth adopting:
+
+Define the **Evidence Service schema early**, even if full evidence features come slightly later in implementation.
+
+That will make debugging the rest of the services much easier.
 
 ---
 
-# 14. Minimal MVP vs Production-Minded MVP
+# 11. Minimal MVP vs production-minded MVP
 
 ## Minimal MVP
 
@@ -1740,45 +1436,33 @@ Add:
 * Policy & Approval
 * Audit & Observability
 
-This is the recommended target.
+This remains the recommended target.
 
 ---
 
-# 15. Final Service Summary
+# 12. Final service summary
 
 The final recommended service decomposition is:
 
 1. **Request Gateway Service** — receives and validates inbound requests
 2. **Trigger Service** — handles local pre-commit, watch mode, and manual local triggers
 3. **QA Orchestration Service** — controls lifecycle and workflow state
-4. **Distributed Understanding Service** — ingests and fuses folder/URL artifacts
+4. **Distributed Understanding Service** — ingests, normalizes, and fuses folder/URL artifacts into case understanding
 5. **Semantic State Service** — creates semantic state maps, transitions, and fingerprints
 6. **Mismatch Detection Service** — detects requirement and artifact conflicts before execution
-7. **Knowledge Graph Service** — stores explicit QA relationships and supports bounded graph expansion
-8. **Retrieval Service** — provides full Graph-RAG runtime: hybrid search, expansion, reranking, context packs
+7. **Knowledge Graph Service** — stores explicit QA relationships and supports bounded graph expansion and impact lookup
+8. **Retrieval Service** — provides full Graph-RAG runtime: hybrid search, expansion, **reranking**, and context packs
 9. **Agent Runtime Service** — hosts specialized reasoning agents and consumes grounded context packs
 10. **Test Asset Service** — manages strategies, tests, reusable modules, and governed versions
 11. **Execution Service** — coordinates diagnostic and regression execution
-12. **Browser Worker Service** — runs web tests with state-aware waits
+12. **Browser Worker Service** — runs web tests with native state-aware waits and state-aware assertions
 13. **API Runner Worker Service** — runs API tests
-14. **Evidence Service** — persists forensic-grade evidence, semantic trace, and summaries
+14. **Evidence Service** — persists forensic-grade evidence, semantic trace, visual diffs, reasoning logs, and summaries
 15. **Healing Service** — performs forensic self-healing analysis and manages healing logs
 16. **Playbook Service** — exports and governs deterministic playbooks from diagnostic discoveries
 17. **State Management Service** — prepares and cleans deterministic test state
-18. **Triage & Confidence Service** — classifies failures with confidence
+18. **Triage & Confidence Service** — classifies failures with confidence and evidence-backed explanation
 19. **Defect Draft Service** — creates defect-quality packets
 20. **Policy & Approval Service** — governs risky and uncertain actions
 21. **Audit & Observability Service** — captures logs, traces, metrics, RAG logs, mismatch logs, healing logs, and playbook logs
-
-This service design now fully fits the final architecture:
-
-* distributed understanding
-* semantic state maps
-* mismatch detection
-* Graph-RAG
-* dual execution modes
-* forensic healing
-* deterministic playbooks
-* forensic-grade evidence
-* local shift-left triggers 
 

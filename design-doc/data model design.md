@@ -1,26 +1,16 @@
-Below is the **rewritten Part 6 — Data Model**, updated to fit the **final architectural design**.
+I agree with most of Gemini’s comments. The strongest updates are:
 
-I kept the strongest parts of your previous data model:
+* make the **operational data model** explicitly the **system of record**, separate from the knowledge graph as the reasoning layer
+* strengthen the “**black box flight recorder**” idea across `Request`, `TriggerEvent`, `Workflow`, `AgentTask`, `RetrievalQuery`, and `ContextPack`
+* make **ElementFingerprints** explicitly **versioned snapshots**, so healing can compare how a UI element drifted over time
+* make **forensic evidence integrity** stronger by requiring checksums/hashes across evidence artifacts
+* make `RunStep` evidence linkage more explicit by ensuring step-level linkage to both **semantic trace** and **what was observed**
+* strengthen **DeterministicPlaybook** with a **performance baseline** so the platform can detect “execution regression” even when the test still passes
+* reinforce **TriggerEvent → Case → Run** lineage so shift-left reporting is first-class
 
-* polyglot persistence
-* request/workflow tracking
-* artifact + chunk modeling
-* retrieval query/result/context-pack logging
-* test asset versioning
-* execution, evidence, triage, defect, approval, learning, and audit records
+I did **not** change the overall direction, because your uploaded Part 6 was already strong on polyglot persistence, workflow traceability, Graph-RAG observability, and forensic data handling. The comments mostly sharpen the operational rigor rather than requiring a redesign. 
 
-I updated it to match the final architecture in these areas:
-
-* **distributed understanding**
-* **semantic state map as a first-class persisted concept**
-* **requirement mismatch records**
-* **dual execution modes**: diagnostic vs regression
-* **forensic self-healing** and persistent healing logs
-* **deterministic playbook export and promotion**
-* **forensic-grade evidence schema**
-* **local trigger / shift-left lineage**
-
-Your previous data model was already strong on Graph-RAG observability and operational traceability. The main gap was that it did not yet fully model the final architecture’s **state layer**, **mismatch layer**, **healing layer**, **playbook layer**, and **trigger layer** explicitly enough. 
+Below is the **rewritten Part 6 — Data Model**, kept full-length and aligned to the final architecture.
 
 ---
 
@@ -30,9 +20,13 @@ Your previous data model was already strong on Graph-RAG observability and opera
 
 ### Final Architecture-Aligned Version
 
+#### Full merged rewrite
+
 This section defines the **platform operational data model** for your AI-powered QA system.
 
 This is the **application and persistence model**, not the knowledge graph model alone.
+
+If the Knowledge Graph is the platform’s **reasoning brain**, this operational model is the platform’s **system of record** and **stateful body**.
 
 It covers the structured records needed for:
 
@@ -61,7 +55,30 @@ This section complements that by defining the **operational records** that servi
 
 ---
 
-# 1. Data Model Goals
+# 1. Strategic data-model win
+
+The strongest feature of this design is **unified operational traceability**.
+
+The platform should behave like a **black box flight recorder** for QA automation.
+
+That means if something goes wrong, you can reconstruct:
+
+* which request started it
+* which trigger caused it
+* which workflow stage failed
+* which agent ran
+* which context pack it was given
+* which retrieval query produced that context
+* which evidence was captured
+* which healing decision was proposed
+* which policy profile was active
+* which review decision approved or rejected the result
+
+This is one of the most important strengths of the whole system.
+
+---
+
+# 2. Data model goals
 
 The data model must support:
 
@@ -80,14 +97,19 @@ The data model must support:
 13. Graph-RAG preparation and runtime retrieval
 14. context-pack auditability
 15. future expansion without major redesign
+16. forensic integrity of evidence
+17. performance-baseline tracking for stable regression detection
+18. shift-left trigger lineage and impact reporting
+
+The uploaded version already covered most of this well; the last three are the main review-driven upgrades. 
 
 ---
 
-# 2. Storage Strategy
+# 3. Storage strategy
 
 Use a **polyglot persistence model**.
 
-## 2.1 Recommended storage split
+## 3.1 Recommended storage split
 
 ### Relational database
 
@@ -149,11 +171,11 @@ Use for:
 * playbook summaries
 * mismatch summaries
 
-This preserves the strong prior storage split and extends it to the final architecture’s new persisted concepts. 
+This remains the right storage split and matches the review’s implementation matrix. 
 
 ---
 
-# 3. Primary Data Domains
+# 4. Primary data domains
 
 The operational data model is divided into these domains:
 
@@ -177,7 +199,7 @@ The operational data model is divided into these domains:
 18. Learning domain
 19. Audit / policy domain
 
-The new explicit domains added for the final architecture are:
+The final architecture’s major explicit additions remain:
 
 * Trigger
 * Understanding
@@ -188,7 +210,7 @@ The new explicit domains added for the final architecture are:
 
 ---
 
-# 4. ID Strategy
+# 5. ID strategy
 
 Use stable IDs with readable prefixes.
 
@@ -203,7 +225,8 @@ Examples:
 * `STATEMAP-1001` — semantic state map
 * `STATE-1001` — semantic state entry
 * `TRANS-1001` — transition
-* `FP-1001` — element fingerprint
+* `FP-1001` — fingerprint family
+* `FPV-1001` — fingerprint version snapshot
 * `MM-1001` — mismatch warning
 * `RV-2001` — retrieval view
 * `RQLOG-1001` — retrieval query log
@@ -215,8 +238,10 @@ Examples:
 * `TA-3001` — test asset
 * `PLAYBOOK-1001` — deterministic playbook
 * `RUN-3001` — run
+* `RUNSTEP-1001` — run step
 * `EV-1001` — evidence
 * `EVSUM-1001` — evidence summary
+* `BUNDLE-1001` — evidence bundle
 * `HEAL-1001` — healing event
 * `HEALLOG-1001` — healing log
 * `TRI-1001` — triage result
@@ -225,15 +250,13 @@ Examples:
 * `DEC-1001` — review decision
 * `LS-1001` — learning signal
 
-This keeps debugging and traceability practical.
+The addition of `FPV-*` is an important improvement from the review.
 
 ---
 
-# 5. Request Domain
+# 6. Request domain
 
----
-
-## 5.1 `qa_request`
+## 6.1 `qa_request`
 
 Represents an inbound QA request.
 
@@ -268,7 +291,7 @@ Represents an inbound QA request.
 
 ---
 
-## 5.2 `qa_request_case`
+## 6.2 `qa_request_case`
 
 Join table between request and cases.
 
@@ -283,7 +306,7 @@ Join table between request and cases.
 
 ---
 
-## 5.3 `qa_request_source_url`
+## 6.3 `qa_request_source_url`
 
 Stores browser-readable URLs included in a request.
 
@@ -301,13 +324,11 @@ Stores browser-readable URLs included in a request.
 
 ---
 
-# 6. Trigger Domain
+# 7. Trigger domain
 
-This is new and required by the final architecture.
+This is a first-class final-architecture domain.
 
----
-
-## 6.1 `trigger_event`
+## 7.1 `trigger_event`
 
 Represents a local or derived trigger.
 
@@ -318,20 +339,29 @@ Represents a local or derived trigger.
 | actor_id               | string nullable | developer/service identity                                    |
 | environment            | string          | often `LOCAL`                                                 |
 | git_diff_files_json    | json nullable   | changed files if relevant                                     |
+| git_commit_hash        | string nullable | useful for local shift-left lineage                           |
+| file_change_hash       | string nullable | normalized change set identity                                |
 | inferred_case_ids_json | json nullable   | affected cases                                                |
+| impact_summary_json    | json nullable   | affected flows/pages/assets summary                           |
 | status                 | string          | `received`, `translated`, `failed`                            |
 | summary                | text nullable   |                                                               |
 | created_at             | timestamp       |                                                               |
 
-This is one of the key missing operational pieces in the prior model.
+### Why this matters
+
+By linking `TriggerEvent` to `Case` and `Run`, you can generate change-impact reports such as:
+
+* commit changed auth component
+* triggered 3 smoke tests
+* all 3 passed
+
+That is a strong review suggestion and worth adopting. 
 
 ---
 
-# 7. Case Domain
+# 8. Case domain
 
----
-
-## 7.1 `qa_case`
+## 8.1 `qa_case`
 
 Represents a managed case definition.
 
@@ -350,7 +380,7 @@ Represents a managed case definition.
 
 ---
 
-## 7.2 `qa_case_version`
+## 8.2 `qa_case_version`
 
 Optional but recommended.
 
@@ -365,11 +395,9 @@ Optional but recommended.
 
 ---
 
-# 8. Artifact Domain
+# 9. Artifact domain
 
----
-
-## 8.1 `artifact`
+## 9.1 `artifact`
 
 Represents any ingested source artifact.
 
@@ -394,7 +422,7 @@ Represents any ingested source artifact.
 
 ---
 
-## 8.2 `artifact_chunk`
+## 9.2 `artifact_chunk`
 
 Used for retrieval and structured parsing.
 
@@ -413,11 +441,9 @@ Used for retrieval and structured parsing.
 | source_quality    | string nullable | `high`, `medium`, `low`                                                                                                                |
 | created_at        | timestamp       |                                                                                                                                        |
 
-This remains a first-class grounding table, now extended for semantic-state-related chunking too. 
-
 ---
 
-## 8.3 `artifact_parse_result`
+## 9.3 `artifact_parse_result`
 
 Stores parser-specific extraction outputs.
 
@@ -434,13 +460,9 @@ Stores parser-specific extraction outputs.
 
 ---
 
-# 9. Understanding Domain
+# 10. Understanding domain
 
-This is new.
-
----
-
-## 9.1 `case_understanding`
+## 10.1 `case_understanding`
 
 Represents fused case understanding produced from distributed understanding.
 
@@ -463,17 +485,13 @@ Represents fused case understanding produced from distributed understanding.
 | created_at           | timestamp       |                |
 | updated_at           | timestamp       |                |
 
-This record supports the final architecture’s distributed understanding model.
-
 ---
 
-# 10. Semantic State Domain
+# 11. Semantic state domain
 
-This is one of the biggest additions.
+This is one of the biggest additions and a critical operational asset.
 
----
-
-## 10.1 `semantic_state_map`
+## 11.1 `semantic_state_map`
 
 Represents the state model for a case.
 
@@ -493,7 +511,7 @@ Represents the state model for a case.
 
 ---
 
-## 10.2 `semantic_state`
+## 11.2 `semantic_state`
 
 Represents an observable UI or business state.
 
@@ -510,7 +528,7 @@ Represents an observable UI or business state.
 
 ---
 
-## 10.3 `state_transition`
+## 11.3 `state_transition`
 
 Represents a transition between states.
 
@@ -528,7 +546,7 @@ Represents a transition between states.
 
 ---
 
-## 10.4 `expected_outcome`
+## 11.4 `expected_outcome`
 
 Represents the intended outcome associated with a state or transition.
 
@@ -544,33 +562,56 @@ Represents the intended outcome associated with a state or transition.
 
 ---
 
-## 10.5 `element_fingerprint`
+## 11.5 `element_fingerprint`
 
-Represents a multi-attribute fingerprint of a UI element.
+Represents a stable fingerprint family for a UI element.
 
-| Field            | Type            | Notes                                              |
-| ---------------- | --------------- | -------------------------------------------------- |
-| id               | string          | `FP-*`                                             |
-| state_map_id     | string          |                                                    |
-| page_ref         | string nullable |                                                    |
-| element_name     | string          |                                                    |
-| fingerprint_json | json            | role, label, text, classes, DOM neighborhood, etc. |
-| stability        | string nullable | `low`, `medium`, `high`                            |
-| version_no       | int             |                                                    |
-| created_at       | timestamp       |                                                    |
-| updated_at       | timestamp       |                                                    |
+| Field             | Type            | Notes                   |
+| ----------------- | --------------- | ----------------------- |
+| id                | string          | `FP-*`                  |
+| state_map_id      | string          |                         |
+| page_ref          | string nullable |                         |
+| element_name      | string          |                         |
+| stability         | string nullable | `low`, `medium`, `high` |
+| active_version_no | int nullable    |                         |
+| created_at        | timestamp       |                         |
+| updated_at        | timestamp       |                         |
 
-This is required for the final architecture’s forensic healing design.
+### Important correction
 
----
-
-# 11. Mismatch Domain
-
-This is new.
+Your earlier version stored fingerprint body and version together. The review is correct that this should be a **versioned snapshot model**, not just a version number on one row. 
 
 ---
 
-## 11.1 `mismatch_warning`
+## 11.6 `element_fingerprint_version`
+
+Represents a versioned fingerprint snapshot.
+
+| Field              | Type               | Notes                                                                    |
+| ------------------ | ------------------ | ------------------------------------------------------------------------ |
+| id                 | string             | `FPV-*`                                                                  |
+| fingerprint_id     | string             | FK to `element_fingerprint.id`                                           |
+| version_no         | int                |                                                                          |
+| page_ref           | string nullable    |                                                                          |
+| snapshot_json      | json               | role, label, text, classes, DOM neighborhood, ARIA, position hints, etc. |
+| status             | string             | `active`, `deprecated`, `candidate`                                      |
+| source_run_id      | string nullable    | optional run that observed it                                            |
+| created_by_task_id | string nullable    |                                                                          |
+| created_at         | timestamp          |                                                                          |
+| deprecated_at      | timestamp nullable |                                                                          |
+
+This is an important upgrade because it allows **temporal comparison** during healing:
+
+* how did the button change?
+* was only text updated?
+* did ARIA change?
+* did the DOM neighborhood drift?
+
+---
+
+# 12. Mismatch domain
+
+## 12.1 `mismatch_warning`
 
 Represents a detected requirement or artifact mismatch.
 
@@ -590,15 +631,13 @@ Represents a detected requirement or artifact mismatch.
 | created_at         | timestamp       |                                                                                                               |
 | updated_at         | timestamp       |                                                                                                               |
 
-This is another key final-architecture addition.
+This is already correct and supports pre-execution governance.
 
 ---
 
-# 12. Retrieval Domain
+# 13. Retrieval domain
 
----
-
-## 12.1 `retrieval_view`
+## 13.1 `retrieval_view`
 
 Represents a retrieval-friendly summary of an entity or artifact.
 
@@ -630,11 +669,9 @@ Examples:
 | created_at        | timestamp       |                                                                                                                                                                             |
 | updated_at        | timestamp       |                                                                                                                                                                             |
 
-This table was already strong, but now it must cover final-architecture state, healing, and playbook retrieval too. 
-
 ---
 
-## 12.2 `retrieval_query_log`
+## 13.2 `retrieval_query_log`
 
 Tracks each retrieval request.
 
@@ -653,7 +690,7 @@ Tracks each retrieval request.
 
 ---
 
-## 12.3 `retrieval_result_log`
+## 13.3 `retrieval_result_log`
 
 Stores the candidates returned for a retrieval query.
 
@@ -671,7 +708,7 @@ Stores the candidates returned for a retrieval query.
 
 ---
 
-## 12.4 `context_pack_log`
+## 13.4 `context_pack_log`
 
 Stores the final context pack used for an agent task.
 
@@ -687,14 +724,11 @@ Stores the final context pack used for an agent task.
 | size_metrics_json  | json nullable   | token counts, chunk count, asset count                                                                    |
 | created_at         | timestamp       |                                                                                                           |
 
-### Important final-architecture additions
-
-* `execution_mode`
-* ability to include state refs, mismatch refs, playbook refs, healing refs inside `included_refs_json`
+This remains the key “what the agent actually saw” record.
 
 ---
 
-## 12.5 `context_pack_item`
+## 13.5 `context_pack_item`
 
 Optional normalized join table for context contents.
 
@@ -709,11 +743,9 @@ Optional normalized join table for context contents.
 
 ---
 
-# 13. Workflow Domain
+# 14. Workflow domain
 
----
-
-## 13.1 `workflow_instance`
+## 14.1 `workflow_instance`
 
 Represents the orchestration lifecycle for a request.
 
@@ -734,7 +766,7 @@ Represents the orchestration lifecycle for a request.
 
 ---
 
-## 13.2 `workflow_stage_execution`
+## 14.2 `workflow_stage_execution`
 
 Stores stage-by-stage execution history.
 
@@ -752,11 +784,9 @@ Stores stage-by-stage execution history.
 | error_json      | json nullable      |                                                                                                                                                                                                   |
 | created_at      | timestamp          |                                                                                                                                                                                                   |
 
-This is one of the places where the final architecture changes are very visible.
-
 ---
 
-## 13.3 `agent_task_execution`
+## 14.3 `agent_task_execution`
 
 Represents one agent invocation.
 
@@ -781,15 +811,13 @@ Represents one agent invocation.
 | error_json        | json nullable      |                             |
 | created_at        | timestamp          |                             |
 
-This now explicitly supports mode-aware agent behavior too.
+This remains a core “flight recorder” table.
 
 ---
 
-# 14. Test Asset Domain
+# 15. Test asset domain
 
----
-
-## 14.1 `test_strategy`
+## 15.1 `test_strategy`
 
 Represents a generated strategy record.
 
@@ -807,7 +835,7 @@ Represents a generated strategy record.
 
 ---
 
-## 14.2 `test_scenario`
+## 15.2 `test_scenario`
 
 Represents a scenario-level record.
 
@@ -829,7 +857,7 @@ Represents a scenario-level record.
 
 ---
 
-## 14.3 `test_asset`
+## 15.3 `test_asset`
 
 Represents a versioned executable or structured artifact.
 
@@ -852,15 +880,9 @@ Represents a versioned executable or structured artifact.
 | created_at                   | timestamp       |                                                                                                     |
 | updated_at                   | timestamp       |                                                                                                     |
 
-This is a key final-architecture update:
-
-* state refs
-* mismatch refs
-* playbook linkage
-
 ---
 
-## 14.4 `test_asset_version`
+## 15.4 `test_asset_version`
 
 Stores immutable asset versions.
 
@@ -880,11 +902,9 @@ Stores immutable asset versions.
 | metadata_json       | json nullable   |                                          |
 | created_at          | timestamp       |                                          |
 
-This preserves the architectural lineage of generated versions.
-
 ---
 
-## 14.5 `test_assertion`
+## 15.5 `test_assertion`
 
 Represents assertions linked to scenarios/assets.
 
@@ -901,33 +921,52 @@ Represents assertions linked to scenarios/assets.
 
 ---
 
-# 15. Playbook Domain
+# 16. Playbook domain
 
-This is new.
-
----
-
-## 15.1 `deterministic_playbook`
+## 16.1 `deterministic_playbook`
 
 Represents a reusable deterministic playbook discovered from diagnostic mode.
 
-| Field             | Type            | Notes                                                                   |
-| ----------------- | --------------- | ----------------------------------------------------------------------- |
-| id                | string          | `PLAYBOOK-*`                                                            |
-| case_id           | string          |                                                                         |
-| scenario_id       | string nullable |                                                                         |
-| name              | string          |                                                                         |
-| status            | string          | `discovered`, `exported`, `reviewed`, `approved`, `rejected`, `retired` |
-| source_run_id     | string          | originating diagnostic run                                              |
-| summary           | text nullable   |                                                                         |
-| storage_ref       | text nullable   | playbook file                                                           |
-| retrieval_view_id | string nullable | summary for retrieval                                                   |
-| created_at        | timestamp       |                                                                         |
-| updated_at        | timestamp       |                                                                         |
+| Field                     | Type            | Notes                                                                   |
+| ------------------------- | --------------- | ----------------------------------------------------------------------- |
+| id                        | string          | `PLAYBOOK-*`                                                            |
+| case_id                   | string          |                                                                         |
+| scenario_id               | string nullable |                                                                         |
+| name                      | string          |                                                                         |
+| status                    | string          | `discovered`, `exported`, `reviewed`, `approved`, `rejected`, `retired` |
+| source_run_id             | string          | originating diagnostic run                                              |
+| summary                   | text nullable   |                                                                         |
+| storage_ref               | text nullable   | playbook file                                                           |
+| retrieval_view_id         | string nullable | summary for retrieval                                                   |
+| performance_baseline_json | json nullable   | new: baseline timing and stability profile                              |
+| created_at                | timestamp       |                                                                         |
+| updated_at                | timestamp       |                                                                         |
+
+### Why add `performance_baseline_json`
+
+This is a good review suggestion.
+
+It allows the system to detect **execution regression**:
+
+* the test still passes
+* but rendering or state readiness is much slower than when the playbook was hardened
+
+Example payload:
+
+```json
+{
+  "stateSignals": {
+    "component_ready_ms_p50": 420,
+    "component_ready_ms_p95": 880,
+    "route_stable_ms_p50": 300
+  },
+  "baselineWindow": "2026-04-01 to 2026-04-07"
+}
+```
 
 ---
 
-## 15.2 `playbook_signal`
+## 16.2 `playbook_signal`
 
 Represents a discovered state signal or deterministic wait/action pattern.
 
@@ -941,15 +980,11 @@ Represents a discovered state signal or deterministic wait/action pattern.
 | order_index | int             |                                                                                             |
 | created_at  | timestamp       |                                                                                             |
 
-This is required by the final architecture’s diagnostic-to-regression promotion flow.
-
 ---
 
-# 16. Execution Domain
+# 17. Execution domain
 
----
-
-## 16.1 `execution_run`
+## 17.1 `execution_run`
 
 Represents a run of one or more test assets.
 
@@ -975,7 +1010,7 @@ Represents a run of one or more test assets.
 
 ---
 
-## 16.2 `execution_run_asset`
+## 17.2 `execution_run_asset`
 
 Join table between run and asset.
 
@@ -990,35 +1025,46 @@ Join table between run and asset.
 
 ---
 
-## 16.3 `execution_run_step`
+## 17.3 `execution_run_step`
 
 Represents fine-grained execution steps.
 
-| Field              | Type               | Notes                                                                |
-| ------------------ | ------------------ | -------------------------------------------------------------------- |
-| id                 | string             | `RUNSTEP-*`                                                          |
-| run_id             | string             |                                                                      |
-| test_asset_id      | string nullable    |                                                                      |
-| scenario_id        | string nullable    |                                                                      |
-| order_index        | int                |                                                                      |
-| action_type        | string             | `navigate`, `fill`, `click`, `assert`, `wait_for_state_signal`, etc. |
-| target_json        | json nullable      |                                                                      |
-| input_value_ref    | string nullable    |                                                                      |
-| expected_state_ref | string nullable    |                                                                      |
-| status             | string             | `passed`, `failed`, `skipped`                                        |
-| started_at         | timestamp          |                                                                      |
-| ended_at           | timestamp nullable |                                                                      |
-| duration_ms        | int nullable       |                                                                      |
-| error_code         | string nullable    |                                                                      |
-| error_message      | text nullable      |                                                                      |
-| metadata_json      | json nullable      |                                                                      |
-| created_at         | timestamp          |                                                                      |
+| Field                      | Type               | Notes                                                                |
+| -------------------------- | ------------------ | -------------------------------------------------------------------- |
+| id                         | string             | `RUNSTEP-*`                                                          |
+| run_id                     | string             |                                                                      |
+| test_asset_id              | string nullable    |                                                                      |
+| scenario_id                | string nullable    |                                                                      |
+| order_index                | int                |                                                                      |
+| action_type                | string             | `navigate`, `fill`, `click`, `assert`, `wait_for_state_signal`, etc. |
+| target_json                | json nullable      |                                                                      |
+| input_value_ref            | string nullable    |                                                                      |
+| expected_state_ref         | string nullable    |                                                                      |
+| status                     | string             | `passed`, `failed`, `skipped`                                        |
+| started_at                 | timestamp          |                                                                      |
+| ended_at                   | timestamp nullable |                                                                      |
+| duration_ms                | int nullable       |                                                                      |
+| error_code                 | string nullable    |                                                                      |
+| error_message              | text nullable      |                                                                      |
+| semantic_trace_evidence_id | string nullable    | FK to evidence of type semantic_trace                                |
+| screenshot_evidence_id     | string nullable    | FK to screenshot evidence                                            |
+| dom_snapshot_evidence_id   | string nullable    | FK to DOM snapshot evidence                                          |
+| metadata_json              | json nullable      |                                                                      |
+| created_at                 | timestamp          |                                                                      |
 
-The addition of `expected_state_ref` is important for final-architecture state-aware execution.
+### Why this change matters
+
+Gemini’s comment is correct:
+each important step should be able to point to both:
+
+* the **why** (`semantic_trace`)
+* the **what** (`screenshot` / `dom_snapshot`)
+
+This makes step-level forensic review much easier. 
 
 ---
 
-## 16.4 `execution_context`
+## 17.4 `execution_context`
 
 Optional normalized context table.
 
@@ -1036,11 +1082,11 @@ Optional normalized context table.
 
 ---
 
-# 17. Evidence Domain
+# 18. Evidence domain
 
----
+This is one of the most important domains for forensic integrity.
 
-## 17.1 `evidence`
+## 18.1 `evidence`
 
 Represents evidence metadata.
 
@@ -1053,15 +1099,18 @@ Represents evidence metadata.
 | name          | string          |                                                                                                                                                                 |
 | storage_ref   | text            | object storage ref                                                                                                                                              |
 | mime_type     | string nullable |                                                                                                                                                                 |
-| checksum      | string nullable |                                                                                                                                                                 |
+| checksum      | string          | required for authenticity/integrity                                                                                                                             |
 | metadata_json | json nullable   |                                                                                                                                                                 |
 | created_at    | timestamp       |                                                                                                                                                                 |
 
-This is one of the most important final-architecture upgrades.
+### Important refinement
+
+The review is correct: evidence should always have an integrity field such as checksum/hash.
+I would make `checksum` **required**, not nullable, for finalized evidence artifacts. 
 
 ---
 
-## 17.2 `evidence_summary`
+## 18.2 `evidence_summary`
 
 Retrieval-friendly evidence summaries.
 
@@ -1077,7 +1126,7 @@ Retrieval-friendly evidence summaries.
 
 ---
 
-## 17.3 `evidence_bundle`
+## 18.3 `evidence_bundle`
 
 Represents a grouped evidence package.
 
@@ -1092,7 +1141,7 @@ Represents a grouped evidence package.
 
 ---
 
-## 17.4 `evidence_bundle_item`
+## 18.4 `evidence_bundle_item`
 
 Join table for bundle contents.
 
@@ -1106,37 +1155,36 @@ Join table for bundle contents.
 
 ---
 
-# 18. Healing Domain
+# 19. Healing domain
 
-This is new.
-
----
-
-## 18.1 `healing_event`
+## 19.1 `healing_event`
 
 Represents a healing proposal or runtime healing outcome.
 
-| Field              | Type             | Notes                                                            |
-| ------------------ | ---------------- | ---------------------------------------------------------------- |
-| id                 | string           | `HEAL-*`                                                         |
-| run_id             | string           |                                                                  |
-| run_step_id        | string nullable  |                                                                  |
-| case_id            | string           |                                                                  |
-| fingerprint_id     | string nullable  |                                                                  |
-| original_target    | text             |                                                                  |
-| proposed_target    | text nullable    |                                                                  |
-| confidence         | decimal nullable |                                                                  |
-| confidence_reason  | text nullable    |                                                                  |
-| status             | string           | `proposed`, `applied_runtime`, `rejected`, `approved_for_update` |
-| review_required    | boolean          |                                                                  |
-| created_by_task_id | string nullable  |                                                                  |
-| retrieval_view_id  | string nullable  | summary for retrieval                                            |
-| created_at         | timestamp        |                                                                  |
-| updated_at         | timestamp        |                                                                  |
+| Field                  | Type             | Notes                                                            |
+| ---------------------- | ---------------- | ---------------------------------------------------------------- |
+| id                     | string           | `HEAL-*`                                                         |
+| run_id                 | string           |                                                                  |
+| run_step_id            | string nullable  |                                                                  |
+| case_id                | string           |                                                                  |
+| fingerprint_id         | string nullable  |                                                                  |
+| fingerprint_version_id | string nullable  | more precise linkage                                             |
+| original_target        | text             |                                                                  |
+| proposed_target        | text nullable    |                                                                  |
+| confidence             | decimal nullable |                                                                  |
+| confidence_reason      | text nullable    |                                                                  |
+| status                 | string           | `proposed`, `applied_runtime`, `rejected`, `approved_for_update` |
+| review_required        | boolean          |                                                                  |
+| created_by_task_id     | string nullable  |                                                                  |
+| retrieval_view_id      | string nullable  | summary for retrieval                                            |
+| created_at             | timestamp        |                                                                  |
+| updated_at             | timestamp        |                                                                  |
+
+This now links healing to the **fingerprint snapshot**, not just the fingerprint family.
 
 ---
 
-## 18.2 `healing_log`
+## 19.2 `healing_log`
 
 Represents the persistent healing log record.
 
@@ -1149,15 +1197,11 @@ Represents the persistent healing log record.
 | summary          | text          |                    |
 | created_at       | timestamp     |                    |
 
-This is explicitly required by the final architecture.
-
 ---
 
-# 19. Triage Domain
+# 20. Triage domain
 
----
-
-## 19.1 `triage_result`
+## 20.1 `triage_result`
 
 Represents structured run interpretation.
 
@@ -1178,21 +1222,24 @@ Represents structured run interpretation.
 
 ---
 
-## 19.2 `triage_supporting_evidence`
+## 20.2 `triage_supporting_evidence`
 
 Join table between triage result and evidence.
 
-| Field            | Type          | Notes |
-| ---------------- | ------------- | ----- |
-| id               | string        |       |
-| triage_result_id | string        |       |
-| evidence_id      | string        |       |
-| reason           | text nullable |       |
-| created_at       | timestamp     |       |
+| Field              | Type             | Notes                              |
+| ------------------ | ---------------- | ---------------------------------- |
+| id                 | string           |                                    |
+| triage_result_id   | string           |                                    |
+| evidence_id        | string           |                                    |
+| reason             | text nullable    |                                    |
+| support_confidence | decimal nullable | optional evidence-support strength |
+| created_at         | timestamp        |                                    |
+
+This aligns well with the evidence-confidence thinking from the graph review too.
 
 ---
 
-## 19.3 `triage_history_link`
+## 20.3 `triage_history_link`
 
 Links current triage to historical retrieved items.
 
@@ -1206,15 +1253,11 @@ Links current triage to historical retrieved items.
 | purpose          | string           | `supporting_history`, `similar_case`, `defect_similarity`, `healing_similarity`                       |
 | created_at       | timestamp        |                                                                                                       |
 
-This is now broader and better aligned with the final architecture’s forensic workflow.
-
 ---
 
-# 20. Defect Domain
+# 21. Defect domain
 
----
-
-## 20.1 `known_defect`
+## 21.1 `known_defect`
 
 Represents ingested defects from source materials.
 
@@ -1235,7 +1278,7 @@ Represents ingested defects from source materials.
 
 ---
 
-## 20.2 `defect_draft`
+## 21.2 `defect_draft`
 
 Represents a generated internal defect packet.
 
@@ -1260,7 +1303,7 @@ Represents a generated internal defect packet.
 
 ---
 
-## 20.3 `defect_draft_step`
+## 21.3 `defect_draft_step`
 
 Repro steps for a defect draft.
 
@@ -1274,21 +1317,22 @@ Repro steps for a defect draft.
 
 ---
 
-## 20.4 `defect_draft_evidence`
+## 21.4 `defect_draft_evidence`
 
 Join table between defect draft and evidence.
 
-| Field           | Type            | Notes                                                         |
-| --------------- | --------------- | ------------------------------------------------------------- |
-| id              | string          |                                                               |
-| defect_draft_id | string          |                                                               |
-| evidence_id     | string          |                                                               |
-| purpose         | string nullable | `screenshot`, `trace`, `api_response`, `semantic_trace`, etc. |
-| created_at      | timestamp       |                                                               |
+| Field              | Type             | Notes                                                         |
+| ------------------ | ---------------- | ------------------------------------------------------------- |
+| id                 | string           |                                                               |
+| defect_draft_id    | string           |                                                               |
+| evidence_id        | string           |                                                               |
+| purpose            | string nullable  | `screenshot`, `trace`, `api_response`, `semantic_trace`, etc. |
+| support_confidence | decimal nullable |                                                               |
+| created_at         | timestamp        |                                                               |
 
 ---
 
-## 20.5 `defect_similarity_link`
+## 21.5 `defect_similarity_link`
 
 Stores similarity between a generated defect and known defects.
 
@@ -1303,11 +1347,9 @@ Stores similarity between a generated defect and known defects.
 
 ---
 
-# 21. Approval Domain
+# 22. Approval domain
 
----
-
-## 21.1 `approval_task`
+## 22.1 `approval_task`
 
 Represents a human review item.
 
@@ -1327,11 +1369,9 @@ Represents a human review item.
 | due_at       | timestamp nullable |                                                                                                                                                                   |
 | completed_at | timestamp nullable |                                                                                                                                                                   |
 
-This is explicitly extended for healing, playbook, and mismatch governance.
-
 ---
 
-## 21.2 `review_decision`
+## 22.2 `review_decision`
 
 Represents a reviewer’s decision.
 
@@ -1347,7 +1387,7 @@ Represents a reviewer’s decision.
 
 ---
 
-## 21.3 `policy_decision_log`
+## 22.3 `policy_decision_log`
 
 Stores automated governance decisions.
 
@@ -1368,53 +1408,50 @@ Stores automated governance decisions.
 
 ---
 
-# 22. Learning Domain
+# 23. Learning domain
 
----
-
-## 22.1 `learning_signal`
+## 23.1 `learning_signal`
 
 Represents reusable learning output.
 
-| Field              | Type             | Notes                                                                                                                                                                                                          |
-| ------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id                 | string           | `LS-*`                                                                                                                                                                                                         |
-| signal_type        | string           | `selector_instability`, `repeated_env_issue`, `accepted_healing_pattern`, `rejected_healing_pattern`, `accepted_playbook_pattern`, `rejected_playbook_pattern`, `false_positive_pattern`, `flaky_flow_pattern` |
-| case_id            | string nullable  |                                                                                                                                                                                                                |
-| run_id             | string nullable  |                                                                                                                                                                                                                |
-| test_asset_id      | string nullable  |                                                                                                                                                                                                                |
-| page_ref           | string nullable  |                                                                                                                                                                                                                |
-| flow_ref           | string nullable  |                                                                                                                                                                                                                |
-| state_ref          | string nullable  |                                                                                                                                                                                                                |
-| summary            | text             |                                                                                                                                                                                                                |
-| severity           | string nullable  |                                                                                                                                                                                                                |
-| confidence         | decimal nullable |                                                                                                                                                                                                                |
-| created_by_task_id | string nullable  |                                                                                                                                                                                                                |
-| retrieval_view_id  | string nullable  |                                                                                                                                                                                                                |
-| created_at         | timestamp        |                                                                                                                                                                                                                |
+| Field                  | Type             | Notes                                                                                                                                                                                                          |
+| ---------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                     | string           | `LS-*`                                                                                                                                                                                                         |
+| signal_type            | string           | `selector_instability`, `repeated_env_issue`, `accepted_healing_pattern`, `rejected_healing_pattern`, `accepted_playbook_pattern`, `rejected_playbook_pattern`, `false_positive_pattern`, `flaky_flow_pattern` |
+| case_id                | string nullable  |                                                                                                                                                                                                                |
+| run_id                 | string nullable  |                                                                                                                                                                                                                |
+| test_asset_id          | string nullable  |                                                                                                                                                                                                                |
+| page_ref               | string nullable  |                                                                                                                                                                                                                |
+| flow_ref               | string nullable  |                                                                                                                                                                                                                |
+| state_ref              | string nullable  |                                                                                                                                                                                                                |
+| fingerprint_version_id | string nullable  | useful for temporal evolution analysis                                                                                                                                                                         |
+| summary                | text             |                                                                                                                                                                                                                |
+| severity               | string nullable  |                                                                                                                                                                                                                |
+| confidence             | decimal nullable |                                                                                                                                                                                                                |
+| created_by_task_id     | string nullable  |                                                                                                                                                                                                                |
+| retrieval_view_id      | string nullable  |                                                                                                                                                                                                                |
+| created_at             | timestamp        |                                                                                                                                                                                                                |
 
 ---
 
-## 22.2 `learning_signal_link`
+## 23.2 `learning_signal_link`
 
 Flexible linking table.
 
-| Field              | Type      | Notes                                                                                                                       |
-| ------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------- |
-| id                 | string    |                                                                                                                             |
-| learning_signal_id | string    |                                                                                                                             |
-| target_type        | string    | `run`, `test_asset`, `page`, `flow`, `state`, `review_decision`, `triage_result`, `healing_event`, `deterministic_playbook` |
-| target_id          | string    |                                                                                                                             |
-| relationship_type  | string    | `observed_in`, `relates_to`, `derived_from`                                                                                 |
-| created_at         | timestamp |                                                                                                                             |
+| Field              | Type      | Notes                                                                                                                                                      |
+| ------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                 | string    |                                                                                                                                                            |
+| learning_signal_id | string    |                                                                                                                                                            |
+| target_type        | string    | `run`, `test_asset`, `page`, `flow`, `state`, `review_decision`, `triage_result`, `healing_event`, `deterministic_playbook`, `element_fingerprint_version` |
+| target_id          | string    |                                                                                                                                                            |
+| relationship_type  | string    | `observed_in`, `relates_to`, `derived_from`                                                                                                                |
+| created_at         | timestamp |                                                                                                                                                            |
 
 ---
 
-# 23. Audit / Policy Domain
+# 24. Audit / policy domain
 
----
-
-## 23.1 `audit_log`
+## 24.1 `audit_log`
 
 Central structured audit log.
 
@@ -1437,7 +1474,7 @@ Central structured audit log.
 
 ---
 
-## 23.2 `tool_invocation_log`
+## 24.2 `tool_invocation_log`
 
 Tracks MCP/tool calls.
 
@@ -1461,13 +1498,11 @@ Tracks MCP/tool calls.
 
 ---
 
-# 24. Traceability Fields in Operational Tables
+# 25. Traceability fields in operational tables
 
 The relational model should carry the IDs needed to bridge to the graph and retrieval layers.
 
-## Important bridge IDs
-
-Store wherever relevant:
+Important bridge IDs:
 
 * `case_id`
 * `artifact_id`
@@ -1488,16 +1523,17 @@ Store wherever relevant:
 * `triage_result_id`
 * `defect_draft_id`
 * `healing_event_id`
+* `fingerprint_version_id`
 
-This is a direct final-architecture enhancement over the earlier RAG-only traceability list.
+The last one is an important refinement.
 
 ---
 
-# 25. Suggested Relationships in the Relational Model
+# 26. Suggested relationships in the relational model
 
 Main foreign-key style relationships:
 
-```text id="2pq7s2"
+```text
 trigger_event -> qa_request
 qa_request -> qa_request_case -> qa_case
 qa_request -> qa_request_source_url
@@ -1513,6 +1549,7 @@ semantic_state_map -> semantic_state
 semantic_state_map -> state_transition
 semantic_state_map -> expected_outcome
 semantic_state_map -> element_fingerprint
+element_fingerprint -> element_fingerprint_version
 
 qa_case -> mismatch_warning
 
@@ -1538,6 +1575,7 @@ execution_run -> execution_run_asset
 execution_run -> execution_run_step
 execution_run -> evidence
 evidence -> evidence_summary
+evidence -> evidence_bundle_item
 execution_run -> healing_event
 healing_event -> healing_log
 execution_run -> triage_result
@@ -1551,9 +1589,7 @@ approval_task -> review_decision
 
 ---
 
-# 26. Data Model Relation Diagram
-
-Here is a practical relation diagram in Mermaid:
+# 27. Data model relation diagram
 
 ```mermaid
 erDiagram
@@ -1572,6 +1608,7 @@ erDiagram
     SEMANTIC_STATE_MAP ||--o{ STATE_TRANSITION : defines
     SEMANTIC_STATE_MAP ||--o{ EXPECTED_OUTCOME : includes
     SEMANTIC_STATE_MAP ||--o{ ELEMENT_FINGERPRINT : tracks
+    ELEMENT_FINGERPRINT ||--o{ ELEMENT_FINGERPRINT_VERSION : snapshots
 
     QA_CASE ||--o{ MISMATCH_WARNING : flags
 
@@ -1626,7 +1663,7 @@ erDiagram
 
 ---
 
-# 27. Example Minimal SQL-Oriented Core Tables
+# 28. Example minimal SQL-oriented core tables
 
 If you want a lean but final-architecture-capable first implementation, these are the minimum tables to start with:
 
@@ -1640,34 +1677,37 @@ If you want a lean but final-architecture-capable first implementation, these ar
 8. `case_understanding`
 9. `semantic_state_map`
 10. `semantic_state`
-11. `mismatch_warning`
-12. `retrieval_view`
-13. `retrieval_query_log`
-14. `retrieval_result_log`
-15. `context_pack_log`
-16. `workflow_instance`
-17. `agent_task_execution`
-18. `test_scenario`
-19. `test_asset`
-20. `test_asset_version`
-21. `execution_run`
-22. `execution_run_step`
-23. `evidence`
-24. `evidence_summary`
-25. `healing_event`
-26. `healing_log`
-27. `triage_result`
-28. `defect_draft`
-29. `approval_task`
-30. `review_decision`
-31. `deterministic_playbook`
-32. `audit_log`
+11. `state_transition`
+12. `element_fingerprint`
+13. `element_fingerprint_version`
+14. `mismatch_warning`
+15. `retrieval_view`
+16. `retrieval_query_log`
+17. `retrieval_result_log`
+18. `context_pack_log`
+19. `workflow_instance`
+20. `agent_task_execution`
+21. `test_scenario`
+22. `test_asset`
+23. `test_asset_version`
+24. `execution_run`
+25. `execution_run_step`
+26. `evidence`
+27. `evidence_summary`
+28. `healing_event`
+29. `healing_log`
+30. `triage_result`
+31. `defect_draft`
+32. `approval_task`
+33. `review_decision`
+34. `deterministic_playbook`
+35. `audit_log`
 
-That is the minimum serious data model that fits the final architecture.
+That is the minimum serious data model that fits the final architecture and the review refinements.
 
 ---
 
-# 28. Example Data Flow Through the Model
+# 29. Example data flow through the model
 
 For a single case `login-flow`:
 
@@ -1696,6 +1736,7 @@ Insert:
 * `semantic_state`
 * `state_transition`
 * `element_fingerprint`
+* `element_fingerprint_version`
 * `mismatch_warning`
 
 ## Step 4 — Retrieval preparation
@@ -1742,7 +1783,7 @@ Insert:
 * `healing_event`
 * `healing_log`
 * `deterministic_playbook`
-* `playbook_signal` when diagnostic discovery qualifies
+* `playbook_signal`
 
 ## Step 9 — Triage and defects
 
@@ -1769,11 +1810,9 @@ Insert:
 
 ---
 
-# 29. Status Enums Recommendation
+# 30. Status enums recommendation
 
 Keep enums controlled and small.
-
-## Common statuses
 
 ### Request / workflow
 
@@ -1825,6 +1864,12 @@ Keep enums controlled and small.
 * `active`
 * `superseded`
 
+### Fingerprint version
+
+* `active`
+* `deprecated`
+* `candidate`
+
 ### Mismatch
 
 * `open`
@@ -1852,7 +1897,7 @@ Avoid uncontrolled free-text statuses.
 
 ---
 
-# 30. Versioning Strategy in the Data Model
+# 31. Versioning strategy in the data model
 
 Version these explicitly:
 
@@ -1860,7 +1905,7 @@ Version these explicitly:
 * artifacts if source changes matter
 * case understanding summaries where useful
 * semantic state maps
-* fingerprints if element semantics evolve
+* fingerprints as versioned snapshots
 * test assets
 * defect drafts when edited
 * prompt versions in agent tasks
@@ -1868,11 +1913,11 @@ Version these explicitly:
 * context packs if you want reproducible agent replay
 * deterministic playbooks
 
-This is crucial for reproducibility and debugging in the final architecture.
+This is crucial for reproducibility and debugging.
 
 ---
 
-# 31. Multi-Environment and Mode Support
+# 32. Multi-environment and mode support
 
 Add environment-awareness to these records:
 
@@ -1892,7 +1937,7 @@ This matters because:
 
 ---
 
-# 32. Recommended JSON Fields vs Normalized Tables
+# 33. Recommended JSON fields vs normalized tables
 
 Use JSON where flexibility is useful, but do not overdo it.
 
@@ -1906,8 +1951,9 @@ Use JSON where flexibility is useful, but do not overdo it.
 * approval payload edits
 * retrieval filters
 * context pack size metrics
-* fingerprint bodies
+* fingerprint snapshot bodies
 * playbook signal payloads
+* performance baselines
 
 ## Prefer normalized tables for
 
@@ -1928,6 +1974,7 @@ Use JSON where flexibility is useful, but do not overdo it.
 * workflow stages
 * healing events
 * playbooks
+* fingerprint versions
 
 The rule remains:
 
@@ -1936,7 +1983,7 @@ The rule remains:
 
 ---
 
-# 33. Retention and Lifecycle Notes
+# 34. Retention and lifecycle notes
 
 ## Keep longer
 
@@ -1952,6 +1999,7 @@ The rule remains:
 * context pack logs
 * healing logs
 * playbook metadata
+* fingerprint version history
 
 ## Expire or tier storage
 
@@ -1965,7 +2013,7 @@ The metadata rows can stay even if heavy blobs move to cold storage.
 
 ---
 
-# 34. Final Data Model Summary
+# 35. Final data model summary
 
 Your final-architecture-aligned operational data model should center on these core record types:
 
@@ -1974,16 +2022,16 @@ Your final-architecture-aligned operational data model should center on these co
 * **Case** — what is being tested
 * **Artifact / Chunk** — what was ingested and grounded
 * **Case Understanding** — what was fused from artifacts
-* **Semantic State Map / State / Transition / Fingerprint** — what the system believes the UI and behavior model is
+* **Semantic State Map / State / Transition / Fingerprint / FingerprintVersion** — what the system believes the UI and behavior model is, and how it drifted over time
 * **Mismatch Warning** — what conflicts were discovered before execution
 * **Retrieval View** — what was summarized for search/reuse
 * **Retrieval Query / Result / Context Pack** — what Graph-RAG retrieved and what the agent actually saw
 * **Workflow** — how the platform processed it
 * **Agent Task** — what each agent produced
 * **Test Scenario / Asset** — what was generated and governed
-* **Deterministic Playbook** — what diagnostic discovery hardened into repeatable execution knowledge
+* **Deterministic Playbook** — what diagnostic discovery hardened into repeatable execution knowledge, including baseline performance expectations
 * **Run / Step** — what was executed
-* **Evidence / Evidence Summary** — what was captured and summarized
+* **Evidence / Evidence Summary / Evidence Bundle** — what was captured, summarized, and packaged with integrity metadata
 * **Healing Event / Healing Log** — what runtime forensic healing detected and recorded
 * **Triage Result** — what the platform concluded
 * **Defect Draft** — what issue packet was prepared
@@ -1993,4 +2041,4 @@ Your final-architecture-aligned operational data model should center on these co
 
 Together with the knowledge graph, this gives you:
 
-## operational records + semantic state persistence + Graph-RAG logs + traceability graph + retrieval index + forensic evidence store
+## operational records + semantic state persistence + Graph-RAG logs + traceability graph + retrieval index + forensic evidence store + integrity-preserving system-of-record lifecycle

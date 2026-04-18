@@ -1,27 +1,14 @@
-Below is the **rewritten Part 3 — Knowledge Graph Schema**, updated to match the **final architectural design**.
+Yes — below is the **full-length rewritten Part 3 — Knowledge Graph Schema**, with the **broader original section coverage restored** and the **Gemini-approved improvements merged in**.
 
-I kept the strongest parts of your previous graph design:
+I restored the sections that still fit the requirements and comments, and only changed what genuinely improved the design:
 
-* graph as the traceability backbone
-* Graph-RAG support
-* chunk grounding
-* requirement → test → run → evidence → defect lineage
-* reusable asset discovery
-* review and learning support
+* made **UIState** and **Transition** more explicitly central for path reasoning
+* added **versioned fingerprint lineage**
+* strengthened **MismatchWarning** for pre-execution governance
+* added **confidence on Evidence → DefectDraft support**
+* strengthened **DeterministicPlaybook reuse through shared UI states**
 
-I updated it to fit the final architecture changes in these areas:
-
-* **distributed understanding**
-* **semantic state map as a first-class graph concept**
-* **UI states and transitions**
-* **element fingerprints for forensic self-healing**
-* **requirement mismatch warnings**
-* **dual execution modes**
-* **deterministic playbooks**
-* **forensic-grade evidence schema**
-* **local shift-left trigger lineage**
-
-Your prior graph schema was already strong on Graph-RAG and traceability. The main gap was that it did not yet model the new architecture’s **state layer**, **mismatch layer**, **healing layer**, and **playbook layer** explicitly enough. 
+Your original fuller graph document still fit the architecture very well, so this version keeps that fuller structure instead of compressing it.  
 
 ---
 
@@ -30,6 +17,8 @@ Your prior graph schema was already strong on Graph-RAG and traceability. The ma
 ## AI QA Platform
 
 ### Final Architecture-Aligned Version
+
+#### Full merged rewrite
 
 This section defines the **knowledge graph schema** for your AI-powered QA platform.
 
@@ -62,7 +51,7 @@ Its job is to represent:
 * learning signals
 * retrieval-time expansion paths
 
-This is what allows the system to answer questions like:
+This allows the system to answer questions like:
 
 * Which test validates this requirement?
 * Which state or transition is tied to this user story line?
@@ -78,7 +67,7 @@ This is what allows the system to answer questions like:
 
 ---
 
-# 1. Why the Knowledge Graph Must Match the Final Architecture
+# 1. Why the knowledge graph must match the final architecture
 
 A vector database alone can retrieve relevant text, but it cannot reliably model:
 
@@ -123,7 +112,44 @@ The graph is the truth layer for:
 
 ---
 
-# 2. Graph Design Goals
+# 2. Strategic schema win: the semantic state map as a graph
+
+The most important strength of this schema is the elevation of **UIState** and **Transition** to first-class graph entities.
+
+Traditional document-centric RAG systems flatten UI behavior into text. This design does not.
+
+Instead, it lets the platform reason over an explicit state machine:
+
+* `Login Form Ready`
+* `Submit Valid Credentials`
+* `Dashboard Stable`
+
+## Why it works
+
+This enables **path reasoning**.
+
+For example, the platform can reason that:
+
+* to reach `Dashboard Stable`
+* from `Login Form Ready`
+* it must traverse `Submit Valid Credentials`
+* which may call `POST /auth/login`
+
+That is much stronger than asking an LLM to guess the flow from scattered documents.
+
+## Result
+
+This reduces logic hallucinations during:
+
+* test generation
+* assertion planning
+* execution preparation
+* defect tracing
+* coverage analysis
+
+---
+
+# 3. Graph design goals
 
 The schema should support:
 
@@ -143,16 +169,20 @@ The schema should support:
 14. element fingerprint and healing lineage
 15. deterministic playbook lineage
 16. local trigger lineage for shift-left flows
+17. path reasoning across UI states and transitions
+18. pre-execution governance for unresolved critical mismatches
+19. UI evolution history through fingerprint versioning
+20. evidence-to-defect support confidence modeling
 
 ---
 
-# 3. Modeling Principles
+# 4. Modeling principles
 
-## 3.1 Use stable business nodes
+## 4.1 Use stable business nodes
 
-Nodes like `Case`, `Requirement`, `SemanticStateMap`, `TestAsset`, `Run`, `DefectDraft`, and `Playbook` should be first-class nodes.
+Nodes like `Case`, `Requirement`, `SemanticStateMap`, `TestAsset`, `Run`, `DefectDraft`, and `DeterministicPlaybook` should be first-class nodes.
 
-## 3.2 Separate source artifacts from extracted requirements
+## 4.2 Separate source artifacts from extracted requirements
 
 A markdown file is not the same as the requirement extracted from it.
 
@@ -161,7 +191,7 @@ Example:
 * `Artifact: /stories/US-101.md`
 * `Requirement: user can login with valid credentials`
 
-## 3.3 Separate fused understanding from raw artifacts
+## 4.3 Separate fused understanding from raw artifacts
 
 The system should distinguish:
 
@@ -170,12 +200,12 @@ The system should distinguish:
 * fused semantic understanding
 * state map entities
 
-## 3.4 Separate execution from design-time assets
+## 4.4 Separate execution from design-time assets
 
 A generated Playwright test is a `TestAsset`.
 A specific execution is a `Run`.
 
-## 3.5 Preserve provenance
+## 4.5 Preserve provenance
 
 Every extracted or generated node should connect back to:
 
@@ -185,7 +215,7 @@ Every extracted or generated node should connect back to:
 * review
 * trigger
 
-## 3.6 Prefer explicit relationships over implicit text meaning
+## 4.6 Prefer explicit relationships over implicit text meaning
 
 Do not rely on free text alone to express:
 
@@ -195,15 +225,15 @@ Do not rely on free text alone to express:
 * `healed_from`
 * `promoted_to_playbook`
 
-## 3.7 Make chunk lineage explicit
+## 4.7 Make chunk lineage explicit
 
 Chunks are the bridge between unstructured source content and structured graph entities.
 
-## 3.8 Make state lineage explicit
+## 4.8 Make state lineage explicit
 
 Semantic states, transitions, and expected outcomes must be explicit graph entities, not buried in JSON only.
 
-## 3.9 Model graph expansion paths intentionally
+## 4.9 Model graph expansion paths intentionally
 
 The graph should make it easy to expand from:
 
@@ -215,9 +245,13 @@ The graph should make it easy to expand from:
 * unstable element → fingerprint → healing log
 * diagnostic run → discovered state signals → deterministic playbook
 
+## 4.10 Preserve history instead of replacing it
+
+When the UI evolves, the graph should preserve older fingerprints and deprecate them rather than overwrite them. This supports Learning Agent analysis over time.
+
 ---
 
-# 4. Top-Level Graph Domains
+# 5. Top-level graph domains
 
 The graph should be divided conceptually into these domains:
 
@@ -238,29 +272,28 @@ The graph should be divided conceptually into these domains:
 15. **Learning Domain**
 16. **Trigger Domain**
 
-This expands the earlier graph design with explicit:
+This supports the final architecture’s explicit modeling of:
 
-* understanding
+* distributed understanding
 * semantic state
+* mismatch/governance
 * healing
-* playbook
-* trigger domains. 
+* playbooks
+* trigger lineage
 
 ---
 
-# 5. Core Node Types
+# 6. Core node types
 
----
-
-## 5.1 Case Domain
+## 6.1 Case Domain
 
 ### `Case`
 
 Represents a top-level QA case.
 
-#### Example properties
+Example properties:
 
-```json id="v3c1hz"
+```json
 {
   "caseId": "CASE-101",
   "name": "login-flow",
@@ -277,7 +310,7 @@ Represents a versioned snapshot of the case configuration.
 
 ---
 
-## 5.2 Artifact Domain
+## 6.2 Artifact Domain
 
 ### `Artifact`
 
@@ -302,9 +335,9 @@ Possible artifact types:
 * healing_summary
 * playbook_summary
 
-#### Example properties
+Example properties:
 
-```json id="1p4d1i"
+```json
 {
   "artifactId": "ART-201",
   "artifactType": "story",
@@ -328,15 +361,15 @@ Represents normalized source locations.
 
 ---
 
-## 5.3 Retrieval Grounding Domain
+## 6.3 Retrieval Grounding Domain
 
 ### `ArtifactChunk`
 
 Represents a chunked piece of source or summary content for retrieval and grounding.
 
-#### Example properties
+Example properties:
 
-```json id="d2s5w7"
+```json
 {
   "chunkId": "CHUNK-9001",
   "artifactId": "ART-201",
@@ -369,9 +402,7 @@ Optional node for persisted context packs used by agents.
 
 ---
 
-## 5.4 Understanding Domain
-
-This is new and important for the final architecture.
+## 6.4 Understanding Domain
 
 ### `CaseUnderstanding`
 
@@ -383,9 +414,9 @@ It captures:
 * inferred flows/pages/APIs/rules
 * structured gaps/conflicts
 
-#### Example properties
+Example properties:
 
-```json id="n7lj20"
+```json
 {
   "understandingId": "UNDERSTAND-1001",
   "caseId": "CASE-101",
@@ -405,7 +436,7 @@ Examples:
 
 ---
 
-## 5.5 Requirement Domain
+## 6.5 Requirement Domain
 
 ### `Requirement`
 
@@ -422,9 +453,9 @@ Possible requirement types:
 * visual_expectation
 * api_expectation
 
-#### Example properties
+Example properties:
 
-```json id="3nz3z3"
+```json
 {
   "requirementId": "REQ-501",
   "requirementType": "acceptance_criteria",
@@ -449,17 +480,15 @@ Optional specialized node if you want business rules separate from generic requi
 
 ---
 
-## 5.6 Semantic State Domain
-
-This is the biggest architectural addition.
+## 6.6 Semantic State Domain
 
 ### `SemanticStateMap`
 
 Represents the state model for a case or a major slice of a case.
 
-#### Example properties
+Example properties:
 
-```json id="jydm8u"
+```json
 {
   "stateMapId": "STATEMAP-1001",
   "caseId": "CASE-101",
@@ -481,9 +510,9 @@ Examples:
 * dashboard stable
 * account locked banner shown
 
-#### Example properties
+Example properties:
 
-```json id="ezpq73"
+```json
 {
   "stateId": "STATE-LOGIN-READY",
   "name": "Login Form Ready",
@@ -501,9 +530,9 @@ Examples:
 * submit valid credentials → dashboard loaded
 * submit invalid password → validation error shown
 
-#### Example properties
+Example properties:
 
-```json id="t0ehmn"
+```json
 {
   "transitionId": "TRANS-1001",
   "name": "submit valid credentials",
@@ -522,29 +551,29 @@ Examples:
 * API returns 200
 * account is locked after threshold
 
+### `UIElement`
+
+Represents meaningful UI controls or regions.
+
 ### `ElementFingerprint`
 
-Represents a multi-attribute fingerprint of a meaningful UI element.
+Represents a multi-attribute identity for a meaningful UI element.
 
-Examples of captured attributes:
+### `FingerprintVersion`
 
-* role
-* label
-* text family
-* CSS classes
-* DOM neighborhood
-* page context
-* relative position
-* state-map context
+Represents a specific version of a fingerprint over time.
 
-#### Example properties
+This is a key refinement. Instead of replacing the old fingerprint when the UI changes, the graph should preserve the old version and link the new one as active.
 
-```json id="xgu9zt"
+Example properties:
+
+```json
 {
+  "fingerprintVersionId": "FPV-1002",
   "fingerprintId": "FP-1001",
-  "name": "Submit Button Fingerprint",
-  "version": 1,
-  "stability": "medium"
+  "version": 2,
+  "status": "active",
+  "capturedAt": "2026-04-20T12:00:00Z"
 }
 ```
 
@@ -558,17 +587,17 @@ Examples:
 * state-expectation mismatch
 * expected result contradiction
 
+### `CriticalMismatch`
+
+Optional specialization or severity classification for mismatches that should be eligible to block execution until reviewed.
+
 ---
 
-## 5.7 Application Domain
+## 6.7 Application Domain
 
 ### `Page`
 
 Represents a UI page or view.
-
-### `UIElement`
-
-Represents meaningful UI controls or regions.
 
 ### `ApiEndpoint`
 
@@ -578,11 +607,9 @@ Represents a backend API endpoint.
 
 Represents domain/business objects or payload entities.
 
-These remain valid from the earlier graph design. 
-
 ---
 
-## 5.8 Test Domain
+## 6.8 Test Domain
 
 ### `TestStrategy`
 
@@ -620,7 +647,7 @@ Examples:
 
 ---
 
-## 5.9 Execution Domain
+## 6.9 Execution Domain
 
 ### `Run`
 
@@ -641,8 +668,6 @@ Optional explicit node if you want graph queries over:
 * diagnostic
 * regression
 
-This is useful if mode lineage matters in graph analytics.
-
 ### `TriggerEvent`
 
 Represents local shift-left or request entry origin.
@@ -654,11 +679,9 @@ Examples:
 * manual_local
 * API request
 
-This is useful for tracing local-first workflow lineage.
-
 ---
 
-## 5.10 Evidence Domain
+## 6.10 Evidence Domain
 
 ### `Evidence`
 
@@ -689,7 +712,7 @@ Represents grouped evidence for triage or defect drafting.
 
 ### `SemanticTrace`
 
-Optional explicit node if you want first-class lineage for:
+Represents first-class lineage for:
 
 * requirement line
 * wireframe region
@@ -697,19 +720,17 @@ Optional explicit node if you want first-class lineage for:
 * executed step
 * evidence ref
 
-This aligns strongly with the final evidence schema.
-
 ---
 
-## 5.11 Healing Domain
+## 6.11 Healing Domain
 
 ### `HealingEvent`
 
 Represents a healing decision or proposal generated during or after execution.
 
-#### Example properties
+Example properties:
 
-```json id="5iqcqo"
+```json
 {
   "healingEventId": "HEAL-1001",
   "status": "proposed",
@@ -726,17 +747,21 @@ Represents a persistent logged record of healing activity.
 
 Optional node for recurring UI or selector instability.
 
+### `DiagnosticDiscovery`
+
+Optional node representing a discovery in diagnostic mode before it is hardened into a playbook.
+
 ---
 
-## 5.12 Playbook Domain
+## 6.12 Playbook Domain
 
 ### `DeterministicPlaybook`
 
 Represents a reusable deterministic execution playbook promoted from diagnostic discoveries.
 
-#### Example properties
+Example properties:
 
-```json id="m3ah4e"
+```json
 {
   "playbookId": "PLAYBOOK-1001",
   "name": "login-valid-credentials-playbook",
@@ -760,7 +785,7 @@ This is useful for linking diagnostic discovery to deterministic regression beha
 
 ---
 
-## 5.13 Defect Domain
+## 6.13 Defect Domain
 
 ### `KnownDefect`
 
@@ -780,7 +805,7 @@ Optional version node for edited defect drafts.
 
 ---
 
-## 5.14 Review / Governance Domain
+## 6.14 Review / Governance Domain
 
 ### `ApprovalTask`
 
@@ -806,7 +831,7 @@ Represents an automated governance decision.
 
 ---
 
-## 5.15 Learning Domain
+## 6.15 Learning Domain
 
 ### `LearningSignal`
 
@@ -819,6 +844,7 @@ Examples:
 * repeated mismatch pattern
 * rejected auto-healing pattern
 * stable playbook pattern
+* fingerprint evolution pattern
 
 ### `Pattern`
 
@@ -826,15 +852,11 @@ Optional node for stable learned patterns.
 
 ---
 
-# 6. Core Relationship Types
+# 7. Core relationship types
 
-Below are the most important relationships.
+## 7.1 Case relationships
 
----
-
-## 6.1 Case relationships
-
-```text id="ep8swu"
+```text
 (Case)-[:HAS_VERSION]->(CaseVersion)
 (Case)-[:CONTAINS_ARTIFACT]->(Artifact)
 (Case)-[:HAS_UNDERSTANDING]->(CaseUnderstanding)
@@ -849,9 +871,9 @@ Below are the most important relationships.
 
 ---
 
-## 6.2 Artifact and grounding relationships
+## 7.2 Artifact and grounding relationships
 
-```text id="7iyx0s"
+```text
 (Artifact)-[:HAS_CHUNK]->(ArtifactChunk)
 (Artifact)-[:HAS_RETRIEVAL_VIEW]->(RetrievalView)
 (Artifact)-[:DERIVED_REQUIREMENT]->(Requirement)
@@ -863,7 +885,7 @@ Below are the most important relationships.
 
 ### Chunk grounding relationships
 
-```text id="72ok5g"
+```text
 (ArtifactChunk)-[:GROUNDS_REQUIREMENT]->(Requirement)
 (ArtifactChunk)-[:GROUNDS_FLOW]->(Flow)
 (ArtifactChunk)-[:GROUNDS_PAGE]->(Page)
@@ -877,9 +899,9 @@ These are crucial for Graph-RAG expansion.
 
 ---
 
-## 6.3 Understanding relationships
+## 7.3 Understanding relationships
 
-```text id="06gb7g"
+```text
 (CaseUnderstanding)-[:DERIVED_FROM]->(Artifact)
 (CaseUnderstanding)-[:IDENTIFIES_FLOW]->(Flow)
 (CaseUnderstanding)-[:IDENTIFIES_PAGE]->(Page)
@@ -890,9 +912,9 @@ These are crucial for Graph-RAG expansion.
 
 ---
 
-## 6.4 Requirement relationships
+## 7.4 Requirement relationships
 
-```text id="f2a8nf"
+```text
 (Requirement)-[:BELONGS_TO_FLOW]->(Flow)
 (Requirement)-[:RELATES_TO_PAGE]->(Page)
 (Requirement)-[:RELATES_TO_API]->(ApiEndpoint)
@@ -905,9 +927,9 @@ These are crucial for Graph-RAG expansion.
 
 ---
 
-## 6.5 Semantic state relationships
+## 7.5 Semantic state relationships
 
-```text id="htcigj"
+```text
 (SemanticStateMap)-[:HAS_PAGE]->(Page)
 (SemanticStateMap)-[:HAS_STATE]->(UIState)
 (SemanticStateMap)-[:HAS_TRANSITION]->(Transition)
@@ -916,7 +938,6 @@ These are crucial for Graph-RAG expansion.
 (Page)-[:HAS_ELEMENT]->(UIElement)
 (Page)-[:HAS_STATE]->(UIState)
 
-(UIElement)-[:HAS_FINGERPRINT]->(ElementFingerprint)
 (UIElement)-[:TRIGGERS_TRANSITION]->(Transition)
 
 (Transition)-[:FROM_STATE]->(UIState)
@@ -930,13 +951,24 @@ These are crucial for Graph-RAG expansion.
 (ExpectedOutcome)-[:RELATES_TO_REQUIREMENT]->(Requirement)
 ```
 
-This is the largest structural addition required by the final architecture.
+### Fingerprint versioning relationships
+
+```text
+(ElementFingerprint)-[:HAS_VERSION]->(FingerprintVersion)
+(FingerprintVersion)-[:APPLIES_TO_STATE]->(UIState)
+(FingerprintVersion)-[:APPLIES_TO_ELEMENT]->(UIElement)
+(FingerprintVersion)-[:SUPERSEDED_BY]->(FingerprintVersion)
+(ElementFingerprint)-[:HAS_ACTIVE_VERSION]->(FingerprintVersion)
+(ElementFingerprint)-[:HAS_DEPRECATED_VERSION]->(FingerprintVersion)
+```
+
+This is the key fix for preserving UI evolution history.
 
 ---
 
-## 6.6 Mismatch relationships
+## 7.6 Mismatch relationships
 
-```text id="m4hy0j"
+```text
 (MismatchWarning)-[:DETECTED_FROM]->(Artifact)
 (MismatchWarning)-[:DETECTED_IN_STATE_MAP]->(SemanticStateMap)
 (MismatchWarning)-[:RELATES_TO_REQUIREMENT]->(Requirement)
@@ -945,11 +977,21 @@ This is the largest structural addition required by the final architecture.
 (MismatchWarning)-[:RELATES_TO_API]->(ApiEndpoint)
 ```
 
+### Governance-oriented mismatch relationships
+
+```text
+(MismatchWarning)-[:BLOCKS_EXECUTION_OF]->(TestScenario)
+(MismatchWarning)-[:REQUIRES_REVIEW_BY]->(ApprovalTask)
+(PolicyDecision)-[:BLOCKED_BY_MISMATCH]->(MismatchWarning)
+```
+
+This supports programmatic pre-execution governance when a critical mismatch is unresolved.
+
 ---
 
-## 6.7 Test and reusable asset relationships
+## 7.7 Test and reusable asset relationships
 
-```text id="vmjvlq"
+```text
 (TestStrategy)-[:COVERS_FLOW]->(Flow)
 (TestStrategy)-[:COVERS_REQUIREMENT]->(Requirement)
 (TestStrategy)-[:USES_STATE_MAP]->(SemanticStateMap)
@@ -968,7 +1010,7 @@ This is the largest structural addition required by the final architecture.
 
 ### Retrieval/reuse relationships
 
-```text id="72omdd"
+```text
 (RetrievalView)-[:SUMMARIZES_TEST_ASSET]->(TestAsset)
 (RetrievalView)-[:SUMMARIZES_SCENARIO]->(TestScenario)
 (RetrievalView)-[:SUMMARIZES_STATE_MAP]->(SemanticStateMap)
@@ -981,9 +1023,9 @@ This is the largest structural addition required by the final architecture.
 
 ---
 
-## 6.8 Execution relationships
+## 7.8 Execution relationships
 
-```text id="r3ehz6"
+```text
 (Run)-[:EXECUTES_TEST_ASSET]->(TestAsset)
 (Run)-[:EXECUTES_SCENARIO]->(TestScenario)
 (Run)-[:USES_CONTEXT]->(ExecutionContext)
@@ -994,14 +1036,16 @@ This is the largest structural addition required by the final architecture.
 (RunStep)-[:IMPLEMENTS_FLOW_STEP]->(FlowStep)
 (RunStep)-[:CHECKS_ASSERTION]->(Assertion)
 (RunStep)-[:TARGETS_STATE]->(UIState)
-(RunStep)-[:USES_FINGERPRINT]->(ElementFingerprint)
+(RunStep)-[:USES_FINGERPRINT]->(FingerprintVersion)
 ```
+
+Using `FingerprintVersion` here is more correct than linking only to the abstract fingerprint identity.
 
 ---
 
-## 6.9 Evidence relationships
+## 7.9 Evidence relationships
 
-```text id="qk560a"
+```text
 (Run)-[:PRODUCED_EVIDENCE]->(Evidence)
 (RunStep)-[:PRODUCED_EVIDENCE]->(Evidence)
 (EvidenceBundle)-[:CONTAINS_EVIDENCE]->(Evidence)
@@ -1015,27 +1059,43 @@ This is the largest structural addition required by the final architecture.
 (SemanticTrace)-[:LINKS_RUN_STEP]->(RunStep)
 ```
 
-This aligns the graph with the final forensic evidence schema.
+### Evidence-to-defect support relationship with confidence
+
+```text
+(Evidence)-[:SUPPORTS_DEFECT {
+  confidence: 0.87,
+  confidenceReason: "Evidence directly shows failed expected state and linked semantic trace."
+}]->(DefectDraft)
+```
+
+This is the right place to model how strongly a piece of evidence supports a draft defect.
 
 ---
 
-## 6.10 Healing relationships
+## 7.10 Healing relationships
 
-```text id="f4js9d"
+```text
 (HealingEvent)-[:RAISED_FROM_RUN]->(Run)
 (HealingEvent)-[:RELATES_TO_RUN_STEP]->(RunStep)
 (HealingEvent)-[:RELATES_TO_UI_ELEMENT]->(UIElement)
-(HealingEvent)-[:USED_FINGERPRINT]->(ElementFingerprint)
+(HealingEvent)-[:USED_FINGERPRINT]->(FingerprintVersion)
 (HealingEvent)-[:SUPPORTED_BY_EVIDENCE]->(Evidence)
 (HealingLog)-[:LOGS_EVENT]->(HealingEvent)
 (LearningSignal)-[:DERIVED_FROM_HEALING]->(HealingEvent)
 ```
 
+### Optional fingerprint evolution relationships
+
+```text
+(HealingEvent)-[:DEPRECATES_FINGERPRINT_VERSION]->(FingerprintVersion)
+(HealingEvent)-[:PROMOTES_FINGERPRINT_VERSION]->(FingerprintVersion)
+```
+
 ---
 
-## 6.11 Playbook relationships
+## 7.11 Playbook relationships
 
-```text id="lagfnj"
+```text
 (DeterministicPlaybook)-[:DERIVED_FROM_RUN]->(Run)
 (DeterministicPlaybook)-[:USES_SIGNAL]->(StateSignal)
 (DeterministicPlaybook)-[:RELEVANT_TO_FLOW]->(Flow)
@@ -1045,11 +1105,20 @@ This aligns the graph with the final forensic evidence schema.
 (StateSignal)-[:RELATES_TO_STATE]->(UIState)
 ```
 
+### Shared-state playbook reuse
+
+```text
+(UIState)-[:HAS_REUSABLE_PLAYBOOK]->(DeterministicPlaybook)
+(TestScenario)-[:CAN_REUSE_PLAYBOOK]->(DeterministicPlaybook)
+```
+
+This allows playbooks discovered from one test to benefit other tests that share the same state.
+
 ---
 
-## 6.12 Defect relationships
+## 7.12 Defect relationships
 
-```text id="qmy5t1"
+```text
 (KnownDefect)-[:AFFECTS_REQUIREMENT]->(Requirement)
 (KnownDefect)-[:AFFECTS_FLOW]->(Flow)
 (KnownDefect)-[:AFFECTS_PAGE]->(Page)
@@ -1065,20 +1134,21 @@ This aligns the graph with the final forensic evidence schema.
 
 ### Defect retrieval relationships
 
-```text id="x7xj1r"
+```text
 (RetrievalView)-[:SUMMARIZES_DEFECT]->(KnownDefect)
 (RetrievalView)-[:SUMMARIZES_DEFECT_DRAFT]->(DefectDraft)
 ```
 
 ---
 
-## 6.13 Review / governance relationships
+## 7.13 Review / governance relationships
 
-```text id="02opra"
+```text
 (ApprovalTask)-[:REVIEWS]->(DefectDraft)
 (ApprovalTask)-[:REVIEWS]->(TestAsset)
 (ApprovalTask)-[:REVIEWS]->(HealingEvent)
 (ApprovalTask)-[:REVIEWS]->(DeterministicPlaybook)
+(ApprovalTask)-[:REVIEWS]->(MismatchWarning)
 
 (ReviewDecision)-[:DECIDES]->(ApprovalTask)
 
@@ -1087,26 +1157,28 @@ This aligns the graph with the final forensic evidence schema.
 (PolicyDecision)-[:APPLIES_TO]->(TestAsset)
 (PolicyDecision)-[:APPLIES_TO]->(HealingEvent)
 (PolicyDecision)-[:APPLIES_TO]->(DeterministicPlaybook)
+(PolicyDecision)-[:APPLIES_TO]->(MismatchWarning)
 ```
 
 ---
 
-## 6.14 Learning relationships
+## 7.14 Learning relationships
 
-```text id="h33u73"
+```text
 (LearningSignal)-[:OBSERVED_IN_RUN]->(Run)
 (LearningSignal)-[:RELATES_TO_TEST_ASSET]->(TestAsset)
 (LearningSignal)-[:RELATES_TO_UI_ELEMENT]->(UIElement)
 (LearningSignal)-[:RELATES_TO_FLOW]->(Flow)
 (LearningSignal)-[:RELATES_TO_STATE]->(UIState)
+(LearningSignal)-[:RELATES_TO_FINGERPRINT_VERSION]->(FingerprintVersion)
 (ReviewDecision)-[:GENERATES_SIGNAL]->(LearningSignal)
 ```
 
 ---
 
-## 6.15 Trigger relationships
+## 7.15 Trigger relationships
 
-```text id="30jqj8"
+```text
 (TriggerEvent)-[:INITIATED_REQUEST_FOR]->(Case)
 (TriggerEvent)-[:LED_TO_RUN]->(Run)
 (TriggerEvent)-[:AFFECTED_ASSET]->(TestAsset)
@@ -1114,11 +1186,9 @@ This aligns the graph with the final forensic evidence schema.
 
 ---
 
-## 6.16 Context relationships
+## 7.16 Context relationships
 
-Optional but useful.
-
-```text id="3w7n7b"
+```text
 (ContextPack)-[:INCLUDES_CHUNK]->(ArtifactChunk)
 (ContextPack)-[:INCLUDES_ENTITY]->(Requirement)
 (ContextPack)-[:INCLUDES_ENTITY]->(Flow)
@@ -1132,11 +1202,11 @@ Optional but useful.
 
 ---
 
-# 7. Recommended Minimal Schema vs Extended Schema
+# 8. Recommended minimal schema vs extended schema
 
-## 7.1 Minimal schema for early implementation
+## 8.1 Minimal schema for early implementation
 
-If you want a practical initial graph, start with these nodes:
+Start with these nodes:
 
 * `Case`
 * `Artifact`
@@ -1174,9 +1244,7 @@ And these relationships:
 * `ATTACHES_EVIDENCE`
 * `SIMILAR_TO`
 
-This is the correct minimal graph for the final architecture.
-
-## 7.2 Extended schema for production-mature design
+## 8.2 Extended schema for production-mature design
 
 Add:
 
@@ -1188,18 +1256,19 @@ Add:
 * `Transition`
 * `ExpectedOutcome`
 * `ElementFingerprint`
+* `FingerprintVersion`
 * `ExecutionContext`
 * `ExecutionMode`
 * `EvidenceBundle`
 * `EvidenceSummary`
 * `SemanticTrace`
-* `RetrievalView`
 * `ApprovalTask`
 * `PolicyDecision`
 * `HealingEvent`
 * `HealingLog`
 * `DeterministicPlaybook`
 * `StateSignal`
+* `DiagnosticDiscovery`
 * `LearningSignal`
 * `Pattern`
 * `TriggerEvent`
@@ -1215,12 +1284,13 @@ This supports:
 * learning feedback
 * local trigger lineage
 * deterministic playbook lifecycle
+* UI evolution history
 
 ---
 
-# 8. Example Subgraph: Login Flow with Final Architecture
+# 9. Example subgraph: login flow with final architecture
 
-```text id="6x0pf4"
+```text
 (Case: login-flow)
   -> CONTAINS_ARTIFACT -> (Artifact: US-101.md)
   -> CONTAINS_ARTIFACT -> (Artifact: login-page.png)
@@ -1258,22 +1328,23 @@ This supports:
 
 (HealingEvent: HEAL-1001)
   -> RELATES_TO_UI_ELEMENT -> (UIElement: Submit Button)
-  -> USED_FINGERPRINT -> (ElementFingerprint: FP-1001)
+  -> USED_FINGERPRINT -> (FingerprintVersion: FPV-1002)
 
 (DeterministicPlaybook: PLAYBOOK-1001)
   -> DERIVED_FROM_RUN -> (Run: RUN-3001)
   -> RELEVANT_TO_STATE -> (UIState: Login Form Ready)
-```
 
-This now reflects the final architecture’s state map, healing, and playbook layers.
+(UIState: Login Form Ready)
+  -> HAS_REUSABLE_PLAYBOOK -> (DeterministicPlaybook: PLAYBOOK-1001)
+```
 
 ---
 
-# 9. Node Property Standards
+# 10. Node property standards
 
-## 9.1 Common properties for most nodes
+## 10.1 Common properties for most nodes
 
-```json id="qt37o6"
+```json
 {
   "id": "stable-id",
   "type": "logical-type",
@@ -1284,9 +1355,9 @@ This now reflects the final architecture’s state map, healing, and playbook la
 }
 ```
 
-## 9.2 Provenance properties where relevant
+## 10.2 Provenance properties where relevant
 
-```json id="g77q7o"
+```json
 {
   "sourceType": "folder|browser_url|generated|system",
   "sourcePath": "/test/case/login-flow/stories/US-101.md",
@@ -1296,20 +1367,20 @@ This now reflects the final architecture’s state map, healing, and playbook la
 }
 ```
 
-## 9.3 Confidence properties where relevant
+## 10.3 Confidence properties where relevant
 
-```json id="cljlwm"
+```json
 {
   "confidence": 0.84,
   "confidenceReason": "multiple evidence sources support classification"
 }
 ```
 
-## 9.4 Retrieval properties where relevant
+## 10.4 Retrieval properties where relevant
 
 For `ArtifactChunk`, `RetrievalView`, `EvidenceSummary`, `MismatchWarning`, `DeterministicPlaybook`:
 
-```json id="jlwmv7"
+```json
 {
   "retrievalStatus": "indexed",
   "sourceQuality": "high",
@@ -1321,13 +1392,13 @@ For `ArtifactChunk`, `RetrievalView`, `EvidenceSummary`, `MismatchWarning`, `Det
 
 ---
 
-# 10. Relationship Property Standards
+# 11. Relationship property standards
 
 Relationships may also carry metadata.
 
 Example:
 
-```text id="4t839z"
+```text
 (TestScenario)-[:VALIDATES_REQUIREMENT {
   confidence: 0.93,
   createdBy: "requirement-mapping-agent",
@@ -1345,11 +1416,15 @@ Useful relationship properties:
 * `notes`
 * `sourceRefs`
 
-This remains important for AI-generated mappings and graph-grounded retrieval.
+The new `Evidence -> DefectDraft` support relationship should also carry:
+
+* `confidence`
+* `confidenceReason`
+* `createdAt`
 
 ---
 
-# 11. Versioning Strategy
+# 12. Versioning strategy
 
 Versioning matters because:
 
@@ -1360,6 +1435,7 @@ Versioning matters because:
 * healing history accumulates
 * playbooks are promoted
 * retrieval summaries may be regenerated
+* UI fingerprints evolve
 
 ## Recommended immutable versioning targets
 
@@ -1369,24 +1445,26 @@ Versioning matters because:
 * deterministic playbooks
 * defect drafts
 * retrieval summaries where needed
+* fingerprint versions
 
 And optionally connect them with:
 
-```text id="9n6ue4"
+```text
 (old_version)-[:SUPERSEDED_BY]->(new_version)
 ```
 
 ---
 
-# 12. Coverage Modeling in the Graph
+# 13. Coverage modeling in the graph
 
-Coverage is still one of the strongest graph use cases.
+Coverage is one of the strongest graph use cases.
 
 ## Coverage relationships
 
-```text id="4k9f5u"
+```text
 (TestScenario)-[:VALIDATES_REQUIREMENT]->(Requirement)
 (TestScenario)-[:VALIDATES_STATE]->(UIState)
+(TestScenario)-[:VALIDATES_TRANSITION]->(Transition)
 (TestAsset)-[:IMPLEMENTS_SCENARIO]->(TestScenario)
 (Run)-[:EXECUTES_TEST_ASSET]->(TestAsset)
 ```
@@ -1397,72 +1475,64 @@ From these, you can derive:
 * requirement has executed tests
 * requirement has passing coverage
 * state has validating coverage
-* state transition has validating coverage
-* requirement/state has no coverage
-
-This is stronger than the earlier model because it can now measure **state coverage**, not only requirement coverage.
+* transition has validating coverage
+* requirement/state/transition has no coverage
 
 ---
 
-# 13. Query Patterns the Graph Must Support
+# 14. Query patterns the graph must support
 
-## Requirement traceability
+## Forward traceability
 
-* Which tests validate requirement `REQ-501`?
-* Which runs executed those tests?
-* Which defects relate to that requirement?
+* Show me all tests impacted by a change in this user story.
+* Show me all scenarios linked to this changed state.
+* Show me all tests that can reuse this playbook.
 
-## State traceability
+## Backward traceability
 
-* Which semantic states are linked to `login-flow`?
-* Which transitions are validated by approved tests?
-* Which expected outcomes remain uncovered?
+* Show me exactly which requirement failed based on this screenshot.
+* Show me which state and transition produced this evidence.
+* Show me which mismatch warning may explain this blocked run.
+
+## Coverage analysis
+
+* Which UI states in our semantic map currently have zero associated test scenarios?
+* Which transitions currently have no validating scenarios?
+* Which critical requirements only have draft coverage?
 
 ## Failure analysis
 
 * For failed run `RUN-3001`, what requirement, state, and flow were impacted?
 * What evidence was produced?
 * Was healing attempted?
-
-## Artifact lineage
-
-* Which requirements came from `US-101.md`?
-* Which chunks grounded them?
-* Which state-map entries were derived from them?
-
-## Graph-RAG expansion
-
-* For chunk `CHUNK-9001`, which requirements, flows, pages, states, and APIs should expand?
-* For requirement `REQ-501`, which approved reusable assets and playbooks are relevant?
-* For failed run `RUN-3001`, which similar defect drafts, evidence summaries, and healing logs should triage see?
+* Which evidence supports the defect draft most strongly?
 
 ## Healing and stability
 
 * Which UI elements have repeated instability?
-* Which element fingerprints have produced approved healing?
+* Which fingerprint versions were deprecated over time?
 * Which self-healing proposals were rejected by humans?
 
 ## Playbook lineage
 
 * Which diagnostic run produced playbook `PLAYBOOK-1001`?
+* Which shared UI states can reuse it?
 * Which approved tests currently depend on it?
 
 ---
 
-# 14. Example Graph Queries
+# 15. Example graph queries
 
-I’ll use Cypher-style examples.
+## 15.1 Find all scenarios validating a requirement
 
-## 14.1 Find all scenarios validating a requirement
-
-```cypher id="y9y6j8"
+```cypher
 MATCH (r:Requirement {requirementId: "REQ-501"})<-[:VALIDATES_REQUIREMENT]-(s:TestScenario)
 RETURN s;
 ```
 
-## 14.2 Find all runs and evidence for a requirement
+## 15.2 Find all runs and evidence for a requirement
 
-```cypher id="khqlx7"
+```cypher
 MATCH (r:Requirement {requirementId: "REQ-501"})<-[:VALIDATES_REQUIREMENT]-(s:TestScenario)
 MATCH (t:TestAsset)-[:IMPLEMENTS_SCENARIO]->(s)
 MATCH (run:Run)-[:EXECUTES_TEST_ASSET]->(t)
@@ -1470,9 +1540,9 @@ OPTIONAL MATCH (run)-[:PRODUCED_EVIDENCE]->(e:Evidence)
 RETURN run, e;
 ```
 
-## 14.3 Find uncovered requirements in a case
+## 15.3 Find uncovered requirements in a case
 
-```cypher id="l6zbm3"
+```cypher
 MATCH (c:Case {name: "login-flow"})-[:CONTAINS_ARTIFACT]->(:Artifact)-[:HAS_CHUNK]->(ch:ArtifactChunk)-[:GROUNDS_REQUIREMENT]->(r:Requirement)
 WHERE NOT EXISTS {
   MATCH (:TestScenario)-[:VALIDATES_REQUIREMENT]->(r)
@@ -1480,33 +1550,34 @@ WHERE NOT EXISTS {
 RETURN DISTINCT r;
 ```
 
-## 14.4 Expand chunk to authoring context
+## 15.4 Find UI states with zero scenario coverage
 
-```cypher id="12ngk1"
-MATCH (ch:ArtifactChunk {chunkId: "CHUNK-9001"})
-OPTIONAL MATCH (ch)-[:GROUNDS_REQUIREMENT]->(r:Requirement)
-OPTIONAL MATCH (ch)-[:GROUNDS_FLOW]->(f:Flow)
-OPTIONAL MATCH (ch)-[:GROUNDS_STATE]->(st:UIState)
-OPTIONAL MATCH (r)<-[:VALIDATES_REQUIREMENT]-(s:TestScenario)
-OPTIONAL MATCH (t:TestAsset)-[:IMPLEMENTS_SCENARIO]->(s)
-WHERE t.status = "approved"
-RETURN ch, r, f, st, s, t;
+```cypher
+MATCH (:SemanticStateMap {stateMapId: "STATEMAP-1001"})-[:HAS_STATE]->(st:UIState)
+WHERE NOT EXISTS {
+  MATCH (:TestScenario)-[:VALIDATES_STATE]->(st)
+}
+RETURN st;
 ```
 
-## 14.5 Find similar defect and healing neighborhood for a failed run
+## 15.5 Find evidence supporting a defect draft with confidence
 
-```cypher id="gd9mfg"
-MATCH (run:Run {runId: "RUN-3001"})-[:EXECUTES_TEST_ASSET]->(t:TestAsset)
-MATCH (t)-[:IMPLEMENTS_SCENARIO]->(s:TestScenario)-[:VALIDATES_REQUIREMENT]->(r:Requirement)
-OPTIONAL MATCH (d:KnownDefect)-[:AFFECTS_REQUIREMENT]->(r)
-OPTIONAL MATCH (dd:DefectDraft)-[:RELATES_TO_REQUIREMENT]->(r)
-OPTIONAL MATCH (he:HealingEvent)-[:RAISED_FROM_RUN]->(run)
-RETURN run, r, d, dd, he;
+```cypher
+MATCH (e:Evidence)-[rel:SUPPORTS_DEFECT]->(d:DefectDraft {defectDraftId: "DD-9001"})
+RETURN e, rel.confidence, rel.confidenceReason
+ORDER BY rel.confidence DESC;
+```
+
+## 15.6 Find reusable playbooks for a state
+
+```cypher
+MATCH (st:UIState {stateId: "STATE-LOGIN-READY"})-[:HAS_REUSABLE_PLAYBOOK]->(p:DeterministicPlaybook)
+RETURN p;
 ```
 
 ---
 
-# 15. Recommended Storage Architecture
+# 16. Recommended storage architecture
 
 A **Neo4j + search/vector index hybrid** remains a strong fit.
 
@@ -1523,6 +1594,7 @@ Use for:
 * state relationships
 * healing lineage
 * playbook lineage
+* mismatch governance
 
 ## Retrieval/search store
 
@@ -1544,6 +1616,7 @@ The graph and retrieval layers should be linked through shared IDs such as:
 * `requirementId`
 * `stateMapId`
 * `stateId`
+* `transitionId`
 * `testAssetId`
 * `runId`
 * `playbookId`
@@ -1551,7 +1624,7 @@ The graph and retrieval layers should be linked through shared IDs such as:
 
 ---
 
-# 16. Graph Update Workflows
+# 17. Graph update workflows
 
 The graph is updated by different services.
 
@@ -1576,6 +1649,7 @@ Creates:
 * `Transition`
 * `ExpectedOutcome`
 * `ElementFingerprint`
+* `FingerprintVersion`
 
 ## Mismatch Detection updates
 
@@ -1619,16 +1693,18 @@ Creates:
 
 * `HealingEvent`
 * `HealingLog`
-* instability-related signals
+* `InstabilitySignal`
+* fingerprint evolution links where needed
 
 ## Playbook updates
 
 Creates:
 
+* `DiagnosticDiscovery`
 * `DeterministicPlaybook`
 * `StateSignal`
 
-## Triage/defect/review updates
+## Triage / defect / review updates
 
 Creates:
 
@@ -1639,7 +1715,7 @@ Creates:
 
 ---
 
-# 17. Constraints and Integrity Rules
+# 18. Constraints and integrity rules
 
 ## Recommended uniqueness constraints
 
@@ -1655,6 +1731,7 @@ Unique by ID for:
 * `UIState.stateId`
 * `Transition.transitionId`
 * `ElementFingerprint.fingerprintId`
+* `FingerprintVersion.fingerprintVersionId`
 * `MismatchWarning.mismatchId`
 * `ApiEndpoint.apiId`
 * `TestScenario.scenarioId`
@@ -1680,12 +1757,14 @@ Unique by ID for:
 * every `DeterministicPlaybook` should trace back to at least one diagnostic `Run`
 * every `Evidence` should link to either `Run` or `RunStep`
 * every `RetrievalView` should summarize a valid source node
+* every active `ElementFingerprint` should have exactly one active `FingerprintVersion`
+* every `CriticalMismatch` should either be resolved or linked to an approval/governance decision before blocked execution proceeds
 
 ---
 
-# 18. Recommended Initial Schema Choice
+# 19. Recommended initial schema choice
 
-For your current stage, I recommend this practical approach:
+For your current stage, I recommend this practical approach.
 
 ## Start with these primary nodes
 
@@ -1697,6 +1776,7 @@ For your current stage, I recommend this practical approach:
 * `Page`
 * `UIState`
 * `SemanticStateMap`
+* `Transition`
 * `ApiEndpoint`
 * `TestScenario`
 * `TestAsset`
@@ -1713,6 +1793,7 @@ For your current stage, I recommend this practical approach:
 * `HAS_CHUNK`
 * `HAS_STATE_MAP`
 * `HAS_STATE`
+* `HAS_TRANSITION`
 * `GROUNDS_REQUIREMENT`
 * `GROUNDS_STATE`
 * `GROUNDS_FLOW`
@@ -1731,53 +1812,48 @@ For your current stage, I recommend this practical approach:
 * `ATTACHES_EVIDENCE`
 * `SIMILAR_TO`
 
-Then expand later with:
+## Add early in V1.1 if possible
 
-* `CaseUnderstanding`
-* `Conflict`
-* `FlowStep`
 * `UIElement`
-* `Transition`
 * `ExpectedOutcome`
 * `ElementFingerprint`
+* `FingerprintVersion`
 * `HealingEvent`
+* `SemanticTrace`
 * `DeterministicPlaybook`
 * `StateSignal`
 * `ApprovalTask`
-* `LearningSignal`
-* `ExecutionContext`
-* `EvidenceSummary`
-* `SemanticTrace`
-* `TriggerEvent`
-* optionally `ContextPack`
 
-This gives you a practical graph that matches the final architecture without overcomplicating initial implementation.
+This gives you a practical graph that matches the final architecture without losing the most important refinements.
 
 ---
 
-# 19. Final Schema Summary
+# 20. Final schema summary
 
 The knowledge graph should model the platform as a connected system of:
 
 * **Cases** containing **Artifacts**
 * Artifacts containing **Chunks**
-* Chunks grounding **Requirements**, **Flows**, **Pages**, **States**, **APIs**, and **Known Defects**
+* Chunks grounding **Requirements**, **Flows**, **Pages**, **States**, **Transitions**, **APIs**, and **Known Defects**
 * Cases producing **Case Understanding**
 * Cases owning **Semantic State Maps**
 * State maps containing **UI States**, **Transitions**, and **Fingerprints**
+* Fingerprints carrying **version history** instead of being overwritten
 * Requirements being linked to states and outcomes
-* Requirements being validated by **Test Scenarios**
-* Scenarios being implemented by **Test Assets**
-* Assets being summarized by **Retrieval Views**
+* Requirements and artifacts producing **MismatchWarnings**
+* Critical unresolved mismatches supporting **pre-execution governance**
+* Requirements being validated by **TestScenarios**
+* Scenarios being implemented by **TestAssets**
+* Assets being summarized by **RetrievalViews**
 * Assets being executed in **Runs**
 * Runs producing **Evidence**
-* Failures and UI shifts generating **Healing Events**
-* Diagnostic discoveries becoming **Deterministic Playbooks**
-* Failed runs leading to **Defect Drafts**
-* Human review producing **Review Decisions**
-* Repeated outcomes producing **Learning Signals**
+* Evidence supporting **DefectDrafts** with confidence on the support relationship
+* Failures and UI shifts generating **HealingEvents**
+* Diagnostic discoveries becoming **DeterministicPlaybooks**
+* Playbooks being reusable through shared **UIStates**
+* Human review producing **ReviewDecisions**
+* Repeated outcomes producing **LearningSignals**
 
 That gives you full traceability from:
 
-## source artifact → chunk → requirement/flow/page/state/API → test → run → evidence/healing → defect/playbook → review → learning
-
+## source artifact → chunk → requirement/flow/page/state/transition/API → test → run → evidence/healing → defect/playbook → review → learning

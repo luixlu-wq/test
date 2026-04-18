@@ -1,25 +1,6 @@
-Below is the **rewritten Part 1 — MCP Contracts**, updated to match the **final architectural design**.
+I adopted most of Gemini’s comments and ignored only the part that tried to hardcode one universal review threshold. The right design is to make the threshold **policy-driven**, while still returning the threshold used in the Healing MCP response. The rest of the comments are strong and improve the document: clear separation of reasoning vs action, stronger Semantic Trace emphasis, graph-assisted impact analysis for triggers, and shared visual-anchor logic between Browser Reader and Healing. The original document already had the right foundation for the 16-MCP set, common envelope, dual-mode execution, and state-map-centered design. 
 
-I kept the strong parts of your previous MCP design, especially:
-
-* common contract envelope
-* clear policy boundaries
-* RAG-aware retrieval contracts
-* evidence and asset governance
-
-I updated it to reflect the architecture changes in these areas:
-
-* **distributed understanding** instead of a single overloaded intake path
-* **semantic state map** as a first-class output
-* **requirement mismatch detection**
-* **dual execution modes**: diagnostic vs regression
-* **forensic self-healing**
-* **persistent healing log**
-* **deterministic playbook export**
-* **forensic-grade evidence schema**
-* **local trigger support** such as pre-commit hooks and optional watch mode
-
-Your earlier MCP document was already strong on Graph-RAG, Retrieval MCP, Graph Expansion MCP, and Context Pack MCP. The main gap was that it did not yet expose the new architecture’s **state map**, **mismatch**, **healing**, **playbook**, and **local trigger** capabilities as first-class contracts. 
+Below is the **rewritten MCP contract implementation document**, aligned to the final architecture and explicitly describing **all required MCPs**.
 
 ---
 
@@ -27,86 +8,109 @@ Your earlier MCP document was already strong on Graph-RAG, Retrieval MCP, Graph 
 
 ## AI QA Platform
 
-### Final Architecture-Aligned Version
+### Final Architecture-Aligned MCP Implementation
 
-This section defines the **tool contracts** between the agent layer and the execution/integration layer.
+This document defines the **MCP contract layer** for the AI-powered QA platform.
 
-The goal of MCP in this system is to make every external or operational capability:
+Its role is to create a governed tool bus between:
+
+* the **Agentic Control Plane**
+  and
+* the **Execution / Evidence / Data Plane**
+
+This is one of the most important implementation boundaries in the system.
+
+## Strategic principle: decoupling intelligence from action
+
+The platform must strictly separate:
+
+* **agents**, which provide reasoning, planning, mapping, and judgment
+* **MCP tools**, which provide controlled access to files, browser state, execution, evidence, graph context, test state, and persistence
+
+This separation prevents “hallucinated actions” because no agent can act outside:
+
+* approved operations
+* approved schemas
+* policy-enforced tool contracts
+
+In practice, this means:
+
+* agents do not directly browse filesystems
+* agents do not directly click browsers
+* agents do not directly mutate approved assets
+* agents do not directly persist healing or playbook promotions
+* agents do not directly create hidden side effects
+
+They act through MCP.
+
+---
+
+# 1. MCP design goals
+
+The MCP layer must make all important platform capabilities:
 
 * standardized
 * auditable
-* replaceable
 * permission-controlled
+* traceable
+* replaceable
 * safe for agent use
-* compatible with **distributed understanding**
-* compatible with **hybrid Graph-RAG**
-* compatible with **deterministic and diagnostic execution modes**
+* compatible with distributed understanding
+* compatible with Graph-RAG
+* compatible with semantic state maps
+* compatible with diagnostic and regression execution modes
 
-In this architecture, agents should not directly perform raw file access, graph traversal, browser actions, API execution, state reset, healing persistence, evidence storage, or local trigger orchestration.
-They should call MCP tools through well-defined contracts.
+It must support the final architecture’s major ideas:
 
-This updated version explicitly adds or strengthens:
-
-* **State Map MCP**
-* **Mismatch Detection MCP**
-* **Healing MCP**
-* **Playbook MCP**
-* **Trigger MCP**
-* stronger Evidence MCP for forensic-grade outputs
-
----
-
-# 1. MCP Design Principles
-
-## 1.1 Purpose
-
-MCP contracts provide a standard interface for the platform to:
-
-* read artifacts
-* parse and chunk documents
-* open browser-readable URLs
-* normalize manual assets
-* generate semantic state maps
-* detect requirement mismatches
-* index retrievable content
-* search relevant context
-* expand graph-linked context
-* build task-specific context packs
-* execute browser tests
-* execute API tests
-* manage test state
-* store and retrieve forensic evidence
-* analyze healing opportunities
-* write healing logs
-* export deterministic playbooks
-* manage generated test assets
-* support local triggers such as pre-commit and watch mode
+* manual folder-first ingestion
+* browser-readable source ingestion
+* semantic state map generation
+* mismatch detection
+* Graph-RAG context building
+* deterministic browser/API execution
+* forensic evidence
+* forensic self-healing
+* deterministic playbook export
+* local shift-left triggers
 
 ---
 
-## 1.2 Contract Style
+# 2. Required MCP set
 
-Each MCP tool contract should define:
+The current-stage platform requires these **16 MCPs**:
 
-* **tool name**
-* **purpose**
-* **allowed actions**
-* **input schema**
-* **output schema**
-* **error schema**
-* **policy constraints**
-* **audit metadata**
-* **provenance requirements**
-* **traceability requirements**
-* **execution-mode relevance**, where applicable
+1. **Filesystem MCP**
+2. **Document Parser MCP**
+3. **Browser Reader MCP**
+4. **State Map MCP**
+5. **Mismatch Detection MCP**
+6. **Retrieval MCP**
+7. **Graph Expansion MCP**
+8. **Context Pack MCP**
+9. **Browser Automation MCP**
+10. **API Runner MCP**
+11. **Evidence MCP**
+12. **Healing MCP**
+13. **Playbook MCP**
+14. **State Management MCP**
+15. **Test Asset MCP**
+16. **Trigger MCP**
+
+Deferred MCPs for later stages:
+
+* Figma native MCP
+* Jira / Azure DevOps native MCP
+* PR diff MCP
+* crawler / discovery MCP
+* test management sync MCP
 
 ---
 
-## 1.3 Common Contract Envelope
+# 3. Common contract envelope
 
-All MCP tools should use a common request/response structure.
+All MCP tools should use the same request/response/error envelope.
 
-### Common request envelope
+## 3.1 Common request envelope
 
 ```json
 {
@@ -122,7 +126,7 @@ All MCP tools should use a common request/response structure.
 }
 ```
 
-### Common response envelope
+## 3.2 Common response envelope
 
 ```json
 {
@@ -139,7 +143,7 @@ All MCP tools should use a common request/response structure.
 }
 ```
 
-### Common error envelope
+## 3.3 Common error envelope
 
 ```json
 {
@@ -161,9 +165,9 @@ All MCP tools should use a common request/response structure.
 
 ---
 
-# 2. Shared Contract Conventions
+# 4. Shared contract conventions
 
-## 2.1 Security fields
+## 4.1 Security fields
 
 Every tool request should support:
 
@@ -172,70 +176,34 @@ Every tool request should support:
 * `permissionsScope`
 * `readOnly`
 
-Example:
-
-```json
-{
-  "environment": "UAT",
-  "authProfile": "qa-automation-user",
-  "permissionsScope": ["read:files", "execute:web"],
-  "readOnly": true
-}
-```
-
----
-
-## 2.2 Provenance fields
+## 4.2 Provenance fields
 
 Every tool output should preserve provenance.
 
-```json
-{
-  "sourceType": "folder",
-  "sourcePath": "/test/case/login-flow/stories/US-101.md",
-  "sourceUrl": null,
-  "capturedAt": "2026-04-18T14:12:00Z"
-}
-```
-
-For RAG-aware and state-aware tools, provenance should also support:
+For context-producing tools, provenance should support:
 
 * `artifactId`
 * `chunkId`
 * `requirementRefs`
 * `flowRefs`
 * `pageRefs`
+* `stateRefs`
 * `apiRefs`
 * `stateMapId`
+* `mismatchRefs`
+* `playbookRefs`
 * `evidenceRefs`
 
----
+## 4.3 Evidence refs, not blobs
 
-## 2.3 Evidence references
+Large artifacts should usually be returned as refs, not inlined raw payloads.
 
-When a tool creates evidence, it should return references instead of raw blobs whenever possible:
+## 4.4 Confidence support
 
-```json
-{
-  "evidenceRefs": [
-    "evidence://RUN-3001/screenshot-01",
-    "evidence://RUN-3001/trace-01"
-  ]
-}
-```
+Interpretive tools should return:
 
----
-
-## 2.4 Confidence support
-
-Tools that perform interpretation should return confidence when relevant:
-
-```json
-{
-  "confidence": 0.87,
-  "confidenceReason": "DOM title, button labels, and layout strongly matched expected login page"
-}
-```
+* `confidence`
+* `confidenceReason`
 
 This is especially important for:
 
@@ -243,91 +211,94 @@ This is especially important for:
 * document extraction
 * state map generation
 * mismatch detection
-* healing proposals
-* retrieval reranking
 * visual comparison
+* healing proposals
 
----
+## 4.5 Forensic score support
 
-## 2.5 Traceability support
+Healing-related outputs should also support:
 
-All context-producing tools should return stable refs rather than only free text.
+* `forensicScore`
+* `reviewThresholdUsed`
+* `requiresReview`
 
-Example:
+This adopts Gemini’s idea, but with the threshold driven by policy rather than hardcoded globally.
 
-```json
-{
-  "sourceRefs": [
-    "ART-201:CHUNK-9001",
-    "REQ-501",
-    "FLOW-1001",
-    "STATE-LOGIN-01"
-  ]
-}
-```
-
----
-
-## 2.6 Execution mode support
+## 4.6 Execution mode support
 
 Execution-related tools must respect:
 
 * `diagnostic`
 * `regression`
 
-### Rules
+### Diagnostic mode
 
-* **diagnostic** may allow exploratory reasoning, healing proposal generation, richer evidence, and state discovery
-* **regression** must remain bounded, deterministic, and non-exploratory
+May allow:
+
+* richer evidence
+* exploratory state discovery
+* healing analysis
+* playbook export candidates
+
+### Regression mode
+
+Must remain:
+
+* deterministic
+* bounded
+* non-exploratory
+* approval-aware
+
+## 4.7 Visual anchor convention
+
+This is an important refinement.
+
+UI-seeing tools should support a shared **visual anchor** concept.
+
+A visual anchor may contain:
+
+* approximate coordinates or region
+* nearby labels/text
+* layout neighborhood
+* semantic role guess
+* linked state-map identity
+* linked fingerprint ref where available
+
+This should be used consistently by:
+
+* Browser Reader MCP
+* Healing MCP
+* optionally Evidence MCP
+
+That creates one visual language between:
+
+* what the system “sees” while reading requirements
+* what the system “sees” while healing runtime UI shifts
 
 ---
 
-# 3. MCP Tool Set for Current Stage
+# 5. Filesystem MCP
 
-For the current stage, the platform should have these MCP contracts:
-
-1. **Filesystem MCP**
-2. **Document Parser MCP**
-3. **Browser Reader MCP**
-4. **State Map MCP**
-5. **Mismatch Detection MCP**
-6. **Retrieval MCP**
-7. **Graph Expansion MCP**
-8. **Context Pack MCP**
-9. **Browser Automation MCP**
-10. **API Runner MCP**
-11. **Evidence MCP**
-12. **Healing MCP**
-13. **Playbook MCP**
-14. **State Management MCP**
-15. **Test Asset MCP**
-16. **Trigger MCP**
-
-This expands your prior contract set to match the final architecture. 
-
----
-
-# 4. Filesystem MCP
-
-## 4.1 Purpose
+## Purpose
 
 Provide safe access to local case folders and generated asset storage.
 
-## 4.2 Responsibilities
+## Responsibilities
 
 * list case files
 * read files
 * write generated artifacts
-* verify folder structure
+* validate folder structure
 * fetch metadata/checksum
 
----
+## Operations
 
-## 4.3 Operations
+* `fs.list_case_files`
+* `fs.read_file`
+* `fs.write_generated_asset`
+* `fs.validate_case_structure`
 
-### A. `fs.list_case_files`
-
-#### Request
+## Example: `fs.list_case_files`
 
 ```json
 {
@@ -340,56 +311,33 @@ Provide safe access to local case folders and generated asset storage.
 }
 ```
 
-#### Response
-
-```json
-{
-  "data": {
-    "files": [
-      {
-        "path": "/test/case/login-flow/case.yaml",
-        "type": "file",
-        "size": 1024,
-        "mimeType": "application/x-yaml",
-        "checksum": "sha256:abc123"
-      },
-      {
-        "path": "/test/case/login-flow/stories/US-101.md",
-        "type": "file",
-        "size": 5420,
-        "mimeType": "text/markdown",
-        "checksum": "sha256:def456"
-      }
-    ]
-  }
-}
-```
-
-### B. `fs.read_file`
-
-### C. `fs.write_generated_asset`
-
-### D. `fs.validate_case_structure`
-
-These remain valid.
-
----
-
-## 4.4 Policy constraints
+## Policy constraints
 
 * read allowed in Tier 0
-* write only to approved `generated/` paths
+* write only to approved `generated/` directories
 * no delete in current stage
+
+## Why it matters
+
+This MCP is the foundation for local data sovereignty and folder-first operation.
 
 ---
 
-# 5. Document Parser MCP
+# 6. Document Parser MCP
 
-## 5.1 Purpose
+## Purpose
 
-Convert raw documents into structured content for knowledge ingestion, state-map generation, and RAG preparation.
+Convert raw documents into structured content for ingestion, fusion, state-map generation, and RAG.
 
-## 5.2 Supported source types
+## Responsibilities
+
+* parse documents into structured sections
+* extract entities
+* extract requirements, rules, expected results, steps
+* support chunk-ready outputs
+* preserve source references
+
+## Supported sources
 
 * markdown
 * txt
@@ -397,59 +345,34 @@ Convert raw documents into structured content for knowledge ingestion, state-map
 * docx
 * pdf
 * html snapshots
-* test case templates
+* test templates
 
----
+## Operations
 
-## 5.3 Responsibilities
+* `doc.parse_document`
+* `doc.chunk_document`
+* `doc.extract_requirements`
+* `doc.extract_chunk_metadata`
 
-* parse documents into structured sections
-* extract entities
-* extract acceptance criteria, rules, steps, expected results
-* support chunk-ready outputs
-* preserve source references
-
----
-
-## 5.4 Operations
-
-### A. `doc.parse_document`
-
-### B. `doc.chunk_document`
-
-### C. `doc.extract_requirements`
-
-### D. `doc.extract_chunk_metadata`
-
-These remain valid from the previous version.
-
----
-
-## 5.5 Policy constraints
+## Policy constraints
 
 * read-only
 * no mutation of source docs
-* parser must preserve source references
+* parser output must preserve provenance
+
+## Why it matters
+
+This is one of the two foundation MCPs you should build first.
 
 ---
 
-# 6. Browser Reader MCP
+# 7. Browser Reader MCP
 
-## 6.1 Purpose
+## Purpose
 
 Read browser-accessible external sources before native integrations exist.
 
-This is the temporary bridge for:
-
-* Azure DevOps URLs
-* Jira URLs
-* internal docs pages
-* design preview pages
-* wiki pages
-
----
-
-## 6.2 Responsibilities
+## Responsibilities
 
 * open authenticated URLs
 * render page
@@ -457,60 +380,58 @@ This is the temporary bridge for:
 * capture DOM snapshot
 * capture screenshot
 * return structured page summary
-* produce retrieval-ready normalized content
-* provide visible-truth evidence for fusion and state mapping
+* normalize content for RAG
+* provide visible-truth evidence for artifact fusion
+* produce visual anchors where useful
 
----
+## Operations
 
-## 6.3 Operations
+* `browser.read_page`
+* `browser.extract_structured_page`
+* `browser.normalize_page_for_rag`
+* `browser.capture_visual_reference`
+* `browser.extract_visual_anchors`
 
-### A. `browser.read_page`
-
-### B. `browser.extract_structured_page`
-
-### C. `browser.normalize_page_for_rag`
-
-These remain valid.
-
-### D. `browser.capture_visual_reference`
-
-New optional operation.
-
-Purpose:
-
-* capture wireframe-comparable or screenshot-comparable visual references for evidence and visual diff
-
-#### Example response
+## Example: `browser.extract_visual_anchors`
 
 ```json
 {
   "data": {
-    "visualRef": "evidence://RUN-3001/visual-reference-login-page",
-    "pageName": "Login Page"
+    "pageRef": "PAGE-301",
+    "anchors": [
+      {
+        "anchorId": "VA-1001",
+        "name": "Submit Button",
+        "region": {"x": 420, "y": 580, "w": 140, "h": 44},
+        "nearbyText": ["Password", "Forgot password?"],
+        "semanticRole": "submit_login",
+        "stateMapElementRef": "EL-1001"
+      }
+    ]
   }
 }
 ```
 
----
+## Policy constraints
 
-## 6.4 Policy constraints
-
-* strictly read-only in current stage
-* no clicking submit/update/delete actions
-* only allowed domains
+* read-only in current stage
+* no destructive or submit-style actions
+* approved domains only
 * authenticated sessions must use approved profiles
 
+## Why it matters
+
+This separates **reading** from **automation**, which is correct and important.
+
 ---
 
-# 7. State Map MCP
+# 8. State Map MCP
 
-This is a new first-class tool family required by the architectural change.
-
-## 7.1 Purpose
+## Purpose
 
 Generate and manage the **semantic state map** from fused artifacts.
 
-## 7.2 Responsibilities
+## Responsibilities
 
 * build page/state/element models
 * derive expected states and transitions
@@ -518,13 +439,14 @@ Generate and manage the **semantic state map** from fused artifacts.
 * link states to likely APIs and validations
 * return machine-usable semantic maps
 
----
+## Operations
 
-## 7.3 Operations
+* `state_map.generate`
+* `state_map.get`
+* `state_map.list_by_case`
+* `state_map.link_requirements`
 
-### A. `state_map.generate`
-
-#### Request
+## Example: `state_map.generate`
 
 ```json
 {
@@ -537,83 +459,38 @@ Generate and manage the **semantic state map** from fused artifacts.
 }
 ```
 
-#### Response
+## Policy constraints
 
-```json
-{
-  "data": {
-    "stateMapId": "STATEMAP-1001",
-    "pages": [
-      {
-        "pageRef": "PAGE-301",
-        "name": "Login Page",
-        "elements": [
-          {
-            "elementRef": "EL-1001",
-            "name": "Submit Button",
-            "type": "button",
-            "expectedStates": ["enabled", "disabled_when_invalid"]
-          }
-        ]
-      }
-    ],
-    "transitions": [
-      {
-        "fromPageRef": "PAGE-301",
-        "action": "submit valid credentials",
-        "toPageRef": "PAGE-302"
-      }
-    ],
-    "sourceRefs": ["CHUNK-9001", "CHUNK-9002"]
-  }
-}
-```
-
----
-
-### B. `state_map.get`
-
-### C. `state_map.list_by_case`
-
-### D. `state_map.link_requirements`
-
-Purpose:
-
-* bind requirement refs to state-map nodes
-
----
-
-## 7.4 Policy constraints
-
-* generated state maps must preserve source refs
+* preserve source refs
 * no mutation of approved state maps without versioning
-* confidence should be included when map inference is indirect
+* confidence required when inference is indirect
+
+## Why it matters
+
+This is the “common knowledge” layer that keeps understanding, mapping, and execution synchronized.
 
 ---
 
-# 8. Mismatch Detection MCP
+# 9. Mismatch Detection MCP
 
-This is a new first-class tool family required by the architectural change.
+## Purpose
 
-## 8.1 Purpose
+Detect requirement mismatches across fused artifacts before execution.
 
-Detect **requirement mismatches** across fused artifacts before execution.
-
-## 8.2 Responsibilities
+## Responsibilities
 
 * compare story vs wireframe
 * compare wireframe vs screenshot
 * compare requirement vs state map
-* compare expected result vs visible UI/API evidence
-* surface warnings before test generation or execution
+* compare expected result vs observable UI/API evidence
+* surface warnings before generation or execution
 
----
+## Operations
 
-## 8.3 Operations
+* `mismatch.detect`
+* `mismatch.validate_before_execution`
 
-### A. `mismatch.detect`
-
-#### Request
+## Example: `mismatch.detect`
 
 ```json
 {
@@ -625,252 +502,166 @@ Detect **requirement mismatches** across fused artifacts before execution.
 }
 ```
 
-#### Response
+## Policy constraints
 
-```json
-{
-  "data": {
-    "mismatches": [
-      {
-        "mismatchId": "MM-1001",
-        "type": "story_wireframe_conflict",
-        "summary": "Wireframe shows CAPTCHA but story does not mention it.",
-        "severity": "medium",
-        "sourceRefs": ["ART-201:CHUNK-9005", "ART-205"],
-        "confidence": 0.91
-      }
-    ]
-  }
-}
-```
-
----
-
-### B. `mismatch.validate_before_execution`
-
-Purpose:
-
-* check if unresolved mismatches should block execution or require review
-
----
-
-## 8.4 Policy constraints
-
-* mismatch detection is read-only
-* blocking decisions must be policy-governed
+* read-only
+* blocking behavior must be policy-governed
 * every mismatch must include source refs
 
+## Why it matters
+
+This prevents test generation from silently drifting on contradictory inputs.
+
 ---
 
-# 9. Retrieval MCP
+# 10. Retrieval MCP
 
-## 9.1 Purpose
+## Purpose
 
 Provide hybrid search over indexed QA knowledge.
 
-## 9.2 Responsibilities
+## Responsibilities
 
 * search artifact chunks
 * search approved test asset summaries
 * search prior run summaries
 * search known defects and defect drafts
 * search state-map summaries
-* search healing logs and playbook summaries where allowed
+* search mismatch summaries
+* search healing summaries where allowed
+* search playbook summaries where allowed
 * apply metadata filters
 * support keyword, vector, and hybrid retrieval
 
+## Operations
+
+* `retrieval.search`
+* `retrieval.search_by_refs`
+* `retrieval.index_chunks`
+* `retrieval.delete_or_reindex_refs`
+* `retrieval.search_state_aware`
+
+## Policy constraints
+
+* agent-facing search is read-only
+* indexing only from approved ingestion paths
+* case/environment/policy boundaries must be enforced
+
+## Why it matters
+
+This is the search front-end of Graph-RAG.
+
 ---
 
-## 9.3 Operations
+# 11. Graph Expansion MCP
 
-### A. `retrieval.search`
+## Purpose
 
-### B. `retrieval.search_by_refs`
+Provide bounded graph traversal to enrich retrieval and support impact analysis.
 
-### C. `retrieval.index_chunks`
+## Responsibilities
 
-### D. `retrieval.delete_or_reindex_refs`
+* expand retrieved refs into linked entities
+* traverse bounded relationship sets
+* support lineage lookup
+* support impact analysis
+* expand requirement ↔ state ↔ page ↔ API ↔ test neighborhoods
+* avoid unbounded graph walks
 
-These remain valid.
+## Operations
 
-### E. `retrieval.search_state_aware`
+* `graph.expand_context`
+* `graph.trace_lineage`
+* `graph.find_related_entities`
+* `graph.expand_state_context`
+* `graph.impact_analysis`
 
-New optional operation.
-
-Purpose:
-
-* retrieve content with state-map filters
-
-#### Example request
+## Example: `graph.impact_analysis`
 
 ```json
 {
   "payload": {
-    "queryText": "invalid password validation on login page",
-    "filters": {
-      "caseId": "CASE-101",
-      "pageRefs": ["PAGE-301"],
-      "stateMapId": "STATEMAP-1001"
-    }
+    "changedRefs": [
+      "src/components/LoginForm.tsx",
+      "src/pages/login.tsx"
+    ],
+    "maxDepth": 2
   }
 }
 ```
 
----
+## Policy constraints
 
-## 9.4 Policy constraints
+* max depth enforced
+* relationship allowlist enforced
+* traversal should be case-aware where possible
 
-* read-only for agent-facing search
-* indexing allowed only from approved ingestion pipeline
-* filters must enforce case/environment/policy boundaries
+## Why it matters
 
----
-
-# 10. Graph Expansion MCP
-
-## 10.1 Purpose
-
-Provide bounded graph traversal to enrich retrieval and state-aware mappings.
-
-## 10.2 Responsibilities
-
-* expand retrieved refs into linked entities
-* traverse bounded relationship sets
-* support lineage and impact lookup
-* expand requirement ↔ state ↔ page ↔ API ↔ test relationships
-* avoid unbounded graph walks
+This is how Trigger MCP reduces noise using graph-backed impact analysis.
 
 ---
 
-## 10.3 Operations
+# 12. Context Pack MCP
 
-### A. `graph.expand_context`
-
-### B. `graph.trace_lineage`
-
-### C. `graph.find_related_entities`
-
-These remain valid.
-
-### D. `graph.expand_state_context`
-
-New optional operation.
-
-Purpose:
-
-* expand from state-map refs into linked requirements, elements, pages, APIs, and approved assets
-
----
-
-## 10.4 Policy constraints
-
-* max depth must be enforced
-* relationship allowlist must be respected
-* traversal should be case-aware when possible
-
----
-
-# 11. Context Pack MCP
-
-## 11.1 Purpose
+## Purpose
 
 Build task-specific grounded context packs for agents.
 
-## 11.2 Responsibilities
+## Responsibilities
 
-* combine search results and graph expansion
+* combine search and graph expansion results
 * rerank selected context
 * enforce task-specific limits
-* format context into agent-ready structure
-* preserve source refs, mismatch warnings, and gaps/conflicts
+* format agent-ready context
+* preserve source refs, state refs, mismatch refs, conflicts, gaps, and playbook refs
+
+## Operations
+
+* `context.build_pack`
+* `context.build_pack_from_refs`
+* `context.log_pack`
+* `context.build_pack_for_mode`
+
+## Policy constraints
+
+* bounded pack size
+* sensitive content masking/filtering
+* regression packs should favor approved assets and approved playbooks
+
+## Why it matters
+
+This is the final bounded input into agent prompts.
 
 ---
 
-## 11.3 Operations
+# 13. Browser Automation MCP
 
-### A. `context.build_pack`
-
-This remains valid, but now should be able to include:
-
-* state-map refs
-* mismatch warnings
-* playbook refs
-* healing history refs
-
-### B. `context.build_pack_from_refs`
-
-### C. `context.log_pack`
-
-### D. `context.build_pack_for_mode`
-
-New optional operation.
-
-Purpose:
-
-* build different packs for `diagnostic` vs `regression`
-
----
-
-## 11.4 Policy constraints
-
-* pack size limits must be enforced
-* sensitive content must be filtered or masked
-* agent-specific retrieval policies must be respected
-* regression packs should favor approved assets and stable refs
-
----
-
-# 12. Browser Automation MCP
-
-## 12.1 Purpose
+## Purpose
 
 Execute web UI tests in a controlled browser runtime.
 
-## 12.2 Responsibilities
+## Responsibilities
 
-* launch browser session
+* launch browser sessions
 * navigate
-* perform actions
+* interact
 * assert states
 * capture evidence
 * return structured step results
 * respect execution mode
 
----
+## Operations
 
-## 12.3 Operations
+* `web.start_session`
+* `web.execute_steps`
+* `web.assert_state`
+* `web.capture_artifacts`
+* `web.end_session`
+* `web.wait_for_state_signal`
+* `web.capture_visual_diff`
 
-### A. `web.start_session`
-
-Add:
-
-* `executionMode`
-* `stateMapId`
-* `playbookRef` optional
-
-### B. `web.execute_steps`
-
-### C. `web.assert_state`
-
-Should support:
-
-* semantic assertions
-* state-aware assertions
-* React-aware readiness checks
-
-### D. `web.capture_artifacts`
-
-### E. `web.end_session`
-
-### F. `web.wait_for_state_signal`
-
-New operation.
-
-Purpose:
-
-* wait for state-aware signals instead of naive sleeps
-
-#### Example request
+## Example: `web.wait_for_state_signal`
 
 ```json
 {
@@ -883,72 +674,60 @@ Purpose:
 }
 ```
 
-### G. `web.capture_visual_diff`
+## Policy constraints
 
-New optional operation.
-
-Purpose:
-
-* compare actual UI against manual wireframe or baseline image
-
----
-
-## 12.4 Policy constraints
-
-* only approved environments
-* only approved auth profiles
+* approved environments only
+* approved auth profiles only
 * destructive actions may require escalation
 * regression mode must remain deterministic
-* diagnostic mode may allow richer reasoning loops within policy
+
+## Why it matters
+
+This is the execution-side counterpart to State Map MCP.
 
 ---
 
-# 13. API Runner MCP
+# 14. API Runner MCP
 
-## 13.1 Purpose
+## Purpose
 
 Execute API integration tests with controlled auth, assertions, and evidence.
 
-## 13.2 Responsibilities
+## Responsibilities
 
 * call endpoints
 * manage auth/session
-* validate response
+* validate responses
 * support setup/cleanup
 * capture evidence
 * support linkage to semantic state expectations where relevant
 
----
+## Operations
 
-## 13.3 Operations
+* `api.start_context`
+* `api.execute_request`
+* `api.assert_response`
+* `api.end_context`
 
-### A. `api.start_context`
-
-### B. `api.execute_request`
-
-### C. `api.assert_response`
-
-### D. `api.end_context`
-
-These remain valid.
-
----
-
-## 13.4 Policy constraints
+## Policy constraints
 
 * secrets masked in outputs
-* only approved domains
-* write/delete API actions governed by policy
+* approved domains only
+* write/delete actions governed by policy
+
+## Why it matters
+
+This gives the platform first-class API QA alongside web QA.
 
 ---
 
-# 14. Evidence MCP
+# 15. Evidence MCP
 
-## 14.1 Purpose
+## Purpose
 
 Store and retrieve forensic-grade execution evidence in a normalized way.
 
-## 14.2 Responsibilities
+## Responsibilities
 
 * persist screenshots
 * persist traces/videos
@@ -961,84 +740,60 @@ Store and retrieve forensic-grade execution evidence in a normalized way.
 * support reasoning log output
 * support visual diff output
 
----
+## Operations
 
-## 14.3 Operations
+* `evidence.store`
+* `evidence.get`
+* `evidence.bundle_run`
+* `evidence.summarize_for_retrieval`
+* `evidence.write_semantic_trace`
+* `evidence.write_reasoning_log`
+* `evidence.store_visual_diff`
 
-### A. `evidence.store`
+## Semantic Trace
 
-### B. `evidence.get`
+This remains a first-class feature.
 
-### C. `evidence.bundle_run`
+It should support:
 
-### D. `evidence.summarize_for_retrieval`
+* requirement → state → DOM → executed step → evidence
 
-These remain valid.
+## Policy constraints
 
-### E. `evidence.write_semantic_trace`
+* evidence immutable once finalized
+* reasoning logs must avoid secrets
+* large artifacts returned by ref, not embedded
 
-New operation.
+## Why it matters
 
-Purpose:
-
-* write trace from requirement line → state-map node → DOM element → executed step → evidence
-
-### F. `evidence.write_reasoning_log`
-
-New operation.
-
-Purpose:
-
-* persist plain-text explanation of why an AI decision was made
-
-### G. `evidence.store_visual_diff`
-
-New operation.
-
-Purpose:
-
-* persist visual comparison artifact
+This is what makes failures explainable, not just executable.
 
 ---
 
-## 14.4 Policy constraints
+# 16. Healing MCP
 
-* evidence must be immutable once finalized for a run
-* reasoning logs must avoid leaking secrets
-* heavy binary artifacts should be referenced, not embedded
-
----
-
-# 15. Healing MCP
-
-This is a new first-class tool family.
-
-## 15.1 Purpose
+## Purpose
 
 Provide controlled forensic self-healing analysis and persistent healing logs.
 
-## 15.2 Responsibilities
+## Responsibilities
 
 * analyze broken locators/interactions
 * compare element fingerprints
+* use visual anchors where available
 * perform forensic scan against current DOM
 * generate healing proposals
 * persist healing logs
 * support human hardening workflow
 
----
+## Operations
 
-## 15.3 Operations
+* `healing.generate_fingerprint`
+* `healing.forensic_scan`
+* `healing.write_log`
+* `healing.list_history`
 
-### A. `healing.generate_fingerprint`
-
-Purpose:
-
-* record multi-attribute fingerprint for important elements
-
-### B. `healing.forensic_scan`
-
-#### Request
+## Example: `healing.forensic_scan`
 
 ```json
 {
@@ -1046,217 +801,173 @@ Purpose:
     "sessionId": "WEB-SESSION-001",
     "originalTarget": "button[type='submit']",
     "fingerprintRef": "FP-1001",
-    "stateMapId": "STATEMAP-1001"
+    "stateMapId": "STATEMAP-1001",
+    "visualAnchorRefs": ["VA-1001"]
   }
 }
 ```
 
-#### Response
+## Example response
 
 ```json
 {
   "data": {
     "proposedTarget": "getByRole('button', { name: 'Sign in' })",
     "confidence": 0.92,
-    "confidenceReason": "Matched role, text family, DOM neighborhood, and page context.",
-    "requiresReview": true
+    "forensicScore": 0.92,
+    "confidenceReason": "Matched role, text family, DOM neighborhood, page context, and visual anchor.",
+    "requiresReview": true,
+    "reviewThresholdUsed": 0.95
   }
 }
 ```
 
-### C. `healing.write_log`
+## `healing.write_log` should persist
 
-#### Example response
+* original target
+* proposed target
+* fingerprint ref
+* forensic score
+* threshold used
+* requiresReview
+* policy profile
+* evidence refs
 
-```json
-{
-  "data": {
-    "healingLogRef": "HEALLOG-1001",
-    "path": "/test/case/login-flow/generated/healing/HEALLOG-1001.json"
-  }
-}
-```
-
-### D. `healing.list_history`
-
-Purpose:
-
-* retrieve prior healing events for repeated shifts
-
----
-
-## 15.4 Policy constraints
+## Policy constraints
 
 * healing must not silently rewrite approved tests
 * persistent updates require governance
-* regression mode may use only approved healing outcomes or bounded fallback rules
+* threshold is policy-driven, not universally hardcoded
+
+## Why it matters
+
+This is the controlled human-in-the-loop gate for self-healing.
 
 ---
 
-# 16. Playbook MCP
+# 17. Playbook MCP
 
-This is a new first-class tool family.
+## Purpose
 
-## 16.1 Purpose
+Store and export deterministic playbooks discovered in diagnostic mode.
 
-Store and export **deterministic playbooks** discovered in diagnostic mode.
-
-## 16.2 Responsibilities
+## Responsibilities
 
 * capture discovered state signals
 * store stable wait conditions
-* store safe action sequence
-* export deterministic playbook for regression use
+* store safe action sequences
+* export deterministic playbooks for regression use
+* support governed promotion
 
----
+## Operations
 
-## 16.3 Operations
+* `playbook.export_from_run`
+* `playbook.get`
+* `playbook.promote`
+* `playbook.list_by_case`
 
-### A. `playbook.export_from_run`
-
-#### Request
-
-```json
-{
-  "payload": {
-    "runId": "RUN-3001",
-    "caseId": "CASE-101",
-    "scenarioId": "SCN-2001"
-  }
-}
-```
-
-#### Response
-
-```json
-{
-  "data": {
-    "playbookRef": "PLAYBOOK-1001",
-    "summary": "Deterministic login playbook exported from diagnostic run."
-  }
-}
-```
-
-### B. `playbook.get`
-
-### C. `playbook.promote`
-
-Purpose:
-
-* mark playbook as approved for regression use
-
-### D. `playbook.list_by_case`
-
----
-
-## 16.4 Policy constraints
+## Policy constraints
 
 * only successful or sufficiently reviewed diagnostic discoveries may be promoted
 * regression mode should prefer approved playbooks
 
+## Why it matters
+
+This is how exploratory diagnostic knowledge becomes deterministic regression knowledge.
+
 ---
 
-# 17. State Management MCP
+# 18. State Management MCP
 
-## 17.1 Purpose
+## Purpose
 
 Keep execution deterministic through controlled data and state lifecycle.
 
-## 17.2 Responsibilities
+## Responsibilities
 
+* verify preconditions
 * create/reset test users
 * seed data
-* reset known resources
-* cleanup artifacts
-* verify preconditions
+* reset supported resources
+* cleanup temporary state
 
-These remain valid.
+## Operations
 
----
+* `state.verify_preconditions`
+* `state.setup_data`
+* `state.cleanup_data`
 
-## 17.3 Operations
+## Policy constraints
 
-### A. `state.verify_preconditions`
+* approved environments only
+* safe actions only in current stage
+* all state changes auditable
 
-### B. `state.setup_data`
+## Why it matters
 
-### C. `state.cleanup_data`
-
----
-
-## 17.4 Policy constraints
-
-* only approved environments
-* only safe/setup cleanup actions in current stage
-* all state changes must be auditable
+Without this MCP, deterministic testing is not credible.
 
 ---
 
-# 18. Test Asset MCP
+# 19. Test Asset MCP
 
-## 18.1 Purpose
+## Purpose
 
 Persist generated tests and related assets as governed artifacts.
 
-## 18.2 Responsibilities
+## Responsibilities
 
 * store draft tests
-* version test assets
-* fetch latest approved asset
-* promote asset state
+* version assets
+* fetch approved asset versions
+* promote lifecycle state
 * attach metadata
-* provide retrieval-friendly summaries of reusable assets
+* provide retrieval-friendly summaries
 * link tests to playbooks, state maps, and healing history where relevant
 
----
+## Operations
 
-## 18.3 Operations
+* `asset.create_test_asset`
+* `asset.get_asset`
+* `asset.update_status`
+* `asset.list_assets_for_case`
+* `asset.summarize_for_retrieval`
+* `asset.link_playbook`
+* `asset.link_state_map`
 
-### A. `asset.create_test_asset`
+## Policy constraints
 
-### B. `asset.get_asset`
+* promotion governed
+* approved assets must preserve lineage
 
-### C. `asset.update_status`
+## Why it matters
 
-### D. `asset.list_assets_for_case`
-
-### E. `asset.summarize_for_retrieval`
-
-These remain valid.
-
-### F. `asset.link_playbook`
-
-New optional operation.
-
-### G. `asset.link_state_map`
-
-New optional operation.
+This is the governance layer for generated QA assets.
 
 ---
 
-# 19. Trigger MCP
+# 20. Trigger MCP
 
-This is a new first-class tool family required by the local shift-left architecture.
-
-## 19.1 Purpose
+## Purpose
 
 Support local deterministic triggers such as pre-commit and watch mode.
 
-## 19.2 Responsibilities
+## Responsibilities
 
 * accept local trigger events
 * classify trigger source
 * map changed files to likely cases
+* use graph-assisted impact analysis where available
 * request targeted smoke execution
 * preserve local workflow audit trail
 
----
+## Operations
 
-## 19.3 Operations
+* `trigger.pre_commit`
+* `trigger.watch_mode`
+* `trigger.manual_local`
 
-### A. `trigger.pre_commit`
-
-#### Request
+## Example: updated `trigger.pre_commit`
 
 ```json
 {
@@ -1271,41 +982,34 @@ Support local deterministic triggers such as pre-commit and watch mode.
 }
 ```
 
-#### Response
+## Example response
 
 ```json
 {
   "data": {
     "requestId": "REQ-LOCAL-1001",
     "affectedCases": ["login-flow"],
+    "affectedPages": ["PAGE-301"],
+    "affectedFlows": ["FLOW-1001"],
+    "impactAnalysisMethod": "graph_assisted",
     "recommendedAction": "targeted_smoke_test"
   }
 }
 ```
 
-### B. `trigger.watch_mode`
+## Policy constraints
 
-Purpose:
+* watch mode opt-in
+* pre-commit bounded by smoke scope unless policy expands it
+* local triggers still respect environment and action restrictions
 
-* developer-activated watch trigger
+## Why it matters
 
-### C. `trigger.manual_local`
-
-Purpose:
-
-* local manual run without external API request path
+This is the shift-left entry point for local-first workflow.
 
 ---
 
-## 19.4 Policy constraints
-
-* watch mode should be opt-in
-* pre-commit should use bounded smoke scope unless policy expands it
-* local triggers must still respect environment and action restrictions
-
----
-
-# 20. Audit and Observability Requirements for All MCP Tools
+# 21. Audit and observability requirements
 
 Every MCP tool must emit:
 
@@ -1321,7 +1025,7 @@ Every MCP tool must emit:
 * warnings
 * policy decision outcome
 
-For RAG-related tools, also emit:
+RAG-related tools should also emit:
 
 * query text or query hash
 * filters
@@ -1329,18 +1033,20 @@ For RAG-related tools, also emit:
 * candidate count
 * context pack size
 
-For healing/playbook/state-map tools, also emit:
+Healing / playbook / state-map tools should also emit:
 
 * stateMapId
 * mismatchIds if relevant
 * fingerprintRef if relevant
+* visualAnchorRefs if relevant
 * healingLogRef if created
 * playbookRef if created
 * executionMode
+* forensicScore if healing was evaluated
 
 ---
 
-# 21. Policy Matrix by Tool
+# 22. Policy matrix
 
 | Tool                   | Read Only |                   Write | External Mutation | Current Stage |
 | ---------------------- | --------: | ----------------------: | ----------------: | ------------- |
@@ -1363,109 +1069,44 @@ For healing/playbook/state-map tools, also emit:
 
 ---
 
-# 22. Contract Versioning
+# 23. Build order
 
-Every tool contract should include a version:
+The recommended first build steps are:
 
-```json
-{
-  "tool": "context.build_pack",
-  "version": "2.0"
-}
-```
+1. **Filesystem MCP**
+2. **Document Parser MCP**
 
-Versioning matters because:
+Then:
+3. Browser Reader MCP
+4. State Map MCP
+5. Mismatch Detection MCP
+6. Retrieval + Graph Expansion + Context Pack MCPs
+7. Browser Automation + API Runner MCPs
+8. Evidence MCP
+9. Healing MCP
+10. Playbook MCP
+11. State Management MCP
+12. Test Asset MCP
+13. Trigger MCP
 
-* prompts depend on contract shape
-* execution modes may evolve
-* retrieval behavior may evolve
-* multiple backends may coexist
-
----
-
-# 23. Example End-to-End MCP Usage Flow
-
-For `login-flow`, a typical architecture-aligned sequence would be:
-
-1. `trigger.pre_commit` or manual request entry
-2. `fs.validate_case_structure`
-3. `fs.list_case_files`
-4. `doc.parse_document`
-5. `doc.chunk_document`
-6. `browser.read_page` for external story/bug URL
-7. `browser.normalize_page_for_rag`
-8. `state_map.generate`
-9. `mismatch.detect`
-10. `retrieval.index_chunks`
-11. `context.build_pack` for case understanding
-12. `context.build_pack` for requirement mapping
-13. `context.build_pack` for strategy
-14. `asset.create_test_asset` for generated strategy
-15. `state.verify_preconditions`
-16. `state.setup_data`
-17. `web.start_session`
-18. `web.wait_for_state_signal`
-19. `web.execute_steps`
-20. `web.assert_state`
-21. `api.execute_request` if API validation is needed
-22. `healing.forensic_scan` if locator breaks
-23. `healing.write_log` if healing applied or proposed
-24. `evidence.bundle_run`
-25. `evidence.write_semantic_trace`
-26. `evidence.write_reasoning_log`
-27. `evidence.summarize_for_retrieval`
-28. `playbook.export_from_run` if diagnostic discovery should be hardened
-29. `context.build_pack` for triage if needed
-30. `asset.create_test_asset` for final generated/updated test
-31. `state.cleanup_data`
+That build order is correct for the final architecture.
 
 ---
 
-# 24. Final MCP Contract Summary
+# 24. Final summary
 
-The current-stage MCP layer should include:
+This MCP layer is the governed “language of quality” for the platform.
 
-## Required now
+It gives you:
 
-* **Filesystem MCP**
-* **Document Parser MCP**
-* **Browser Reader MCP**
-* **State Map MCP**
-* **Mismatch Detection MCP**
-* **Retrieval MCP**
-* **Graph Expansion MCP**
-* **Context Pack MCP**
-* **Browser Automation MCP**
-* **API Runner MCP**
-* **Evidence MCP**
-* **Healing MCP**
-* **Playbook MCP**
-* **State Management MCP**
-* **Test Asset MCP**
-* **Trigger MCP**
+* **local-first data sovereignty** through Filesystem MCP
+* **artifact fusion support** through Document Parser + Browser Reader + State Map MCP
+* **state-aware React testing** through State Map MCP + Browser Automation MCP
+* **Graph-RAG context building** through Retrieval + Graph Expansion + Context Pack MCPs
+* **forensic evidence** through Evidence MCP and Semantic Trace
+* **controlled self-healing** through Healing MCP
+* **deterministic regression promotion** through Playbook MCP
+* **deterministic test setup/cleanup** through State Management MCP
+* **governed asset lifecycle** through Test Asset MCP
+* **shift-left local execution** through Trigger MCP
 
-## Deferred
-
-* Figma native MCP
-* Jira/ADO native MCP
-* PR diff MCP
-* crawler MCP
-* test management sync MCP
-
----
-
-# 25. Final Recommendation
-
-Before implementation, standardize these contracts around:
-
-* a single JSON envelope
-* strong audit metadata
-* explicit policy fields
-* evidence refs instead of raw large payloads
-* contract versioning from day one
-* source refs in RAG outputs
-* state-map refs in state-aware outputs
-* bounded context pack outputs
-* retrieval and graph-expansion logging
-* persistent healing logs
-* deterministic playbook export support

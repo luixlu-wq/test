@@ -1,26 +1,6 @@
-Below is the **rewritten Part 5 — Agent Prompts**, updated to fit the **final architectural design**.
+I don’t see the Gemini review text in your message, so I can’t apply comment-by-comment edits literally. I used your uploaded Part 5 as the baseline and tightened the areas that most often need improvement in a production prompt system: stronger anti-hallucination boundaries, clearer fact-vs-inference rules, stronger review-gate language, stronger confidence discipline, tighter mode separation, and better prompt contracts for evidence, mismatch, healing, and playbook decisions. 
 
-I kept the strongest parts of your previous prompt design:
-
-* narrow role boundaries
-* structured outputs
-* strong grounding rules
-* policy constraints
-* source-ref traceability
-* bounded context-pack usage
-
-I updated it to match the final architecture in these areas:
-
-* **distributed understanding** instead of a broad intake path
-* **semantic state map** as a first-class output and reasoning input
-* **requirement mismatch awareness**
-* **dual execution modes**: diagnostic vs regression
-* **forensic healing** and persistent healing logs
-* **deterministic playbook export decisions**
-* **forensic-grade evidence schema**
-* **local trigger / shift-left awareness**
-
-Your prior prompt design was already strong on Graph-RAG and bounded context packs. The main gap was that it did not yet fully reflect the final architecture’s **distributed understanding flow**, **state-map-driven reasoning**, **mismatch handling**, **healing governance**, and **playbook promotion logic**. 
+Below is the **rewritten Part 5 — Agent Prompts**, kept full-length and aligned to the final architecture.
 
 ---
 
@@ -29,6 +9,8 @@ Your prior prompt design was already strong on Graph-RAG and bounded context pac
 ## AI QA Platform
 
 ### Final Architecture-Aligned Version
+
+#### Full merged rewrite
 
 This section defines the **agent prompt design** for your AI-powered QA platform.
 
@@ -61,7 +43,7 @@ They reason over **bounded context packs** produced by the Retrieval Service fro
 
 ---
 
-# 1. Prompt Design Goals
+# 1. Prompt design goals
 
 The agent prompts must achieve these goals:
 
@@ -76,12 +58,41 @@ The agent prompts must achieve these goals:
 9. make semantic state reasoning explicit
 10. prevent agents from using unbounded context or unsupported assumptions
 11. support diagnostic and regression decision boundaries
+12. support forensic evidence, healing, and playbook governance
+13. support local trigger / shift-left context without breaking role isolation
+
+The uploaded version already had a strong structure; the main improvement here is making the prompts more explicitly **evidence-first**, **review-gated**, and **mode-disciplined**. 
 
 ---
 
-# 2. Prompting Principles for This Platform
+# 2. Strategic prompt design win
 
-## 2.1 Role isolation
+The most important design choice is:
+
+## many narrow bounded prompts, not one giant QA super-prompt
+
+That is what prevents:
+
+* context stuffing
+* mixed responsibilities
+* hidden policy bypass
+* untraceable reasoning
+* speculative conclusions
+
+In this platform:
+
+* the Retrieval Service builds bounded context
+* the Orchestration layer assigns a narrow role
+* the prompt enforces grounding, policy, and output structure
+* downstream validators check schema and traceability
+
+That is the right production pattern.
+
+---
+
+# 3. Prompting principles for this platform
+
+## 3.1 Role isolation
 
 Each agent should only perform its own job.
 
@@ -91,6 +102,7 @@ Bad:
 * an intake agent inventing requirements
 * a triage agent rewriting approved tests
 * a healing agent silently promoting a runtime workaround into a permanent asset
+* a playbook agent acting like a policy approver
 
 Good:
 
@@ -98,7 +110,7 @@ Good:
 
 ---
 
-## 2.2 Retrieval-grounded reasoning
+## 3.2 Retrieval-grounded reasoning
 
 Agents must only use:
 
@@ -126,7 +138,7 @@ unless supported by passed inputs.
 
 ---
 
-## 2.3 Semantic-state-aware reasoning
+## 3.3 Semantic-state-aware reasoning
 
 Agents that reason about UI behavior must work with:
 
@@ -140,15 +152,38 @@ They should not rely only on selector-level or text-only reasoning when a state-
 
 ---
 
-## 2.4 Structured outputs
+## 3.4 Evidence-first reasoning
 
-Every agent should return JSON-like structured output or a strict schema-compatible object.
+This should be explicit.
 
-This is critical for orchestration.
+When current-run evidence exists, agents should prioritize:
+
+1. current-run direct evidence
+2. semantic trace
+3. linked state refs
+4. linked requirements and artifacts
+5. historical analogs
+
+Historical analogs may support interpretation, but they must not override contradictory current evidence.
+
+This is especially important for:
+
+* Failure Triage Agent
+* Healing Agent
+* Defect Drafting Agent
+* Playbook Recommendation Agent
 
 ---
 
-## 2.5 Confidence where needed
+## 3.5 Structured outputs
+
+Every agent should return JSON-like structured output or a strict schema-compatible object.
+
+This is critical for orchestration, validation, and replay.
+
+---
+
+## 3.6 Confidence where needed
 
 Not every agent needs confidence scores, but these do:
 
@@ -167,7 +202,7 @@ Not every agent needs confidence scores, but these do:
 
 ---
 
-## 2.6 Explain decisions briefly
+## 3.7 Explain decisions briefly
 
 The platform should capture:
 
@@ -180,7 +215,7 @@ Keep explanations compact and evidence-based.
 
 ---
 
-## 2.7 Respect policy boundaries
+## 3.8 Respect policy boundaries
 
 Prompts must explicitly remind the agent:
 
@@ -193,7 +228,7 @@ Prompts must explicitly remind the agent:
 
 ---
 
-## 2.8 Context packs are authoritative
+## 3.9 Context packs are authoritative
 
 If a context pack is provided, agents must treat it as the primary bounded context for the task.
 
@@ -208,7 +243,7 @@ They should work only with:
 
 ---
 
-## 2.9 Separate diagnostic reasoning from regression reasoning
+## 3.10 Separate diagnostic reasoning from regression reasoning
 
 Agents must respect execution context.
 
@@ -231,11 +266,25 @@ Requires:
 * tighter confidence requirements
 * no speculative branching
 
-This distinction is now part of prompt behavior.
+This distinction is essential and should remain explicit.
 
 ---
 
-# 3. Common Prompt Structure
+## 3.11 Fact vs inference discipline
+
+This should be promoted from a simple guardrail to a major prompt principle.
+
+Agents must separate:
+
+* **Observed fact**: directly supported by evidence, chunk refs, state refs, or tool output
+* **Inference**: supported interpretation built from those facts
+* **Unknown / gap**: not sufficiently supported
+
+This is one of the most important anti-hallucination protections in the whole system.
+
+---
+
+# 4. Common prompt structure
 
 Every agent prompt should be composed from these parts:
 
@@ -246,20 +295,23 @@ Every agent prompt should be composed from these parts:
 5. **Grounding rules**
 6. **Semantic state rules**, if applicable
 7. **Execution mode rules**, if applicable
-8. **Constraints**
-9. **Output contract**
-10. **Quality rules**
-11. **Failure behavior**
+8. **Policy rules**
+9. **Constraints**
+10. **Output contract**
+11. **Quality rules**
+12. **Failure behavior**
+
+This keeps prompts predictable and testable.
 
 ---
 
-# 4. Global Base Prompt
+# 5. Global base prompt
 
 This is the base instruction shared across all agents.
 
-## 4.1 Base Prompt Template
+## 5.1 Base prompt template
 
-```text id="5t6w0s"
+```text
 You are a production QA platform agent operating inside a controlled AI QA system.
 
 Your job is to perform only the role assigned to you.
@@ -292,6 +344,11 @@ When semantic state references are provided:
 - use them as the preferred model for reasoning about UI behavior and expected outcomes
 - do not reduce state-based behavior to selector-only reasoning unless no state refs are available
 
+When current-run evidence is available:
+- treat current-run evidence as higher priority than historical analogs
+- use historical analogs only as supporting context
+- do not let historical similarity override contradictory current evidence
+
 When producing structured output:
 - follow the required schema exactly
 - do not add extra top-level fields unless requested
@@ -308,17 +365,17 @@ If there is not enough information to complete the task reliably:
 - do not fabricate details
 ```
 
-This is the core final-architecture upgrade to the old base prompt. 
+This remains the most important shared prompt contract.
 
 ---
 
-# 5. Shared Input Envelope for Agents
+# 6. Shared input envelope for agents
 
 The orchestration layer should pass inputs in a consistent structure.
 
-## 5.1 Final Architecture-Aligned Agent Input Envelope
+## 6.1 Final architecture-aligned agent input envelope
 
-```json id="ij4krx"
+```json
 {
   "agentName": "requirement-mapping-agent",
   "requestId": "REQ-1001",
@@ -354,8 +411,8 @@ The orchestration layer should pass inputs in a consistent structure.
 
 ### Important correction
 
-The context pack is no longer only a retrieval artifact.
-It is now also the bounded carrier of:
+The context pack is not only a retrieval artifact.
+It is also the bounded carrier of:
 
 * semantic states
 * mismatch warnings
@@ -365,11 +422,11 @@ It is now also the bounded carrier of:
 
 ---
 
-# 6. Agent Output Conventions
+# 7. Agent output conventions
 
 Each agent should return:
 
-```json id="d52aq0"
+```json
 {
   "status": "success|partial|failed",
   "summary": "short operational summary",
@@ -384,70 +441,100 @@ Each agent should return:
 }
 ```
 
-## New required fields when applicable
+## Required fields when applicable
 
+* `usedSourceRefs`
 * `usedStateRefs`
 * `usedMismatchRefs`
 
-These are important for:
+## Additional recommended field
 
-* semantic traceability
-* mismatch-aware audit
-* debugging state-map quality
-* reviewing healing and playbook decisions
+* `factInferenceNotes`
+
+Use this when the task materially depends on fact-vs-inference separation.
+
+Example:
+
+```json
+{
+  "factInferenceNotes": [
+    {
+      "type": "observed_fact",
+      "text": "Validation error banner visible in screenshot EV-1002"
+    },
+    {
+      "type": "inference",
+      "text": "Failure is likely product-side because expected validation copy differs from requirement REQ-502"
+    }
+  ]
+}
+```
+
+This is optional, but valuable for triage, healing, and playbook decisions.
 
 ---
 
-# 7. Common Guardrails for All Agents
+# 8. Common guardrails for all agents
 
-## 7.1 Ground only on provided context
+## 8.1 Ground only on provided context
 
-```text id="hjynbq"
+```text
 Use only the context pack, explicit inputs, semantic state refs, and allowed tool outputs.
 Do not assume missing context implies absence or presence of functionality.
 ```
 
-## 7.2 Separate fact from inference
+## 8.2 Separate fact from inference
 
-```text id="m531cl"
+```text
 When you make a conclusion, distinguish:
 - observed facts directly supported by source refs, evidence refs, or state refs
 - inferred conclusions based on those facts
 ```
 
-## 7.3 Prefer higher-quality refs
+## 8.3 Prefer higher-quality refs
 
-```text id="4v75g5"
+```text
 When multiple sources support the same conclusion, prefer:
 - approved assets over draft assets
 - direct requirement chunks over indirect summaries
+- current-run evidence over historical analogs
+- semantic trace over loose textual summaries when available
 - state refs over loose textual descriptions when state refs exist
 - current-case refs over unrelated history
 ```
 
-## 7.4 Report context gaps
+## 8.4 Report context gaps
 
-```text id="kyy4pb"
+```text
 If the provided context pack is insufficient, report the gap explicitly.
 Do not compensate by inventing content.
 ```
 
-## 7.5 Respect unresolved mismatch warnings
+## 8.5 Respect unresolved mismatch warnings
 
-```text id="sfnxpk"
+```text
 If mismatch warnings remain unresolved and they affect the task, explicitly note their impact.
 Do not silently ignore them.
 ```
 
-## 7.6 Respect mode boundaries
+## 8.6 Respect mode boundaries
 
-```text id="pb19mh"
+```text
 If executionMode is regression, avoid speculative or exploratory recommendations unless the task explicitly requests a diagnostic analysis.
 ```
 
+## 8.7 Respect approval boundaries
+
+```text
+Do not behave as though approval has already been granted.
+If review is required, say so explicitly and leave the final decision to the Policy & Approval layer.
+```
+
+This approval-boundary reminder should be explicit.
+
 ---
 
-# 8. Prompt Assembly Strategy
+# 9. Prompt assembly strategy
 
 Each final agent prompt should be assembled from:
 
@@ -460,10 +547,11 @@ Each final agent prompt should be assembled from:
 7. output schema reminder
 8. task-specific grounding rules
 9. mode-specific rules if relevant
+10. policy-profile reminder if needed
 
 ---
 
-# 9. Context Pack Design for Prompts
+# 10. Context pack design for prompts
 
 Do not dump everything into every prompt.
 Each agent should receive only what it needs.
@@ -484,7 +572,21 @@ A context pack may contain:
 * `conflicts`
 * `sourceRefs`
 
-## Agent-specific context use
+## Context hierarchy principle
+
+Agents should reason in this order:
+
+1. explicit inputs
+2. current context pack facts and refs
+3. current-run evidence if present
+4. semantic state refs
+5. bounded historical context
+
+That ordering should be implicit in the prompts.
+
+---
+
+# 11. Agent-specific context use
 
 ### Intake Agent
 
@@ -592,11 +694,9 @@ Uses:
 
 ---
 
-# 10. Agent-by-Agent Prompt Design
+# 12. Agent-by-agent prompt design
 
----
-
-## 10.1 Intake Agent Prompt
+## 12.1 Intake Agent prompt
 
 ### Purpose
 
@@ -617,9 +717,9 @@ Interpret the inbound QA request and normalize it for downstream services.
   * watch mode
   * manual local run
 
-### Prompt Template
+### Prompt template
 
-```text id="5mjlwm"
+```text
 Role: Intake Agent
 
 Mission:
@@ -663,7 +763,7 @@ Return:
 
 ---
 
-## 10.2 Artifact Ingestion Agent Prompt
+## 12.2 Artifact Ingestion Agent prompt
 
 ### Purpose
 
@@ -679,9 +779,9 @@ Interpret ingested files and browser-readable pages into normalized artifact rec
 * prepare retrieval-friendly summaries
 * surface likely state-bearing artifacts
 
-### Prompt Template
+### Prompt template
 
-```text id="q3fq5z"
+```text
 Role: Artifact Ingestion Agent
 
 Mission:
@@ -729,13 +829,9 @@ Each artifact must include:
 - confidence
 ```
 
-### New field
-
-`likelyLinkedStates`
-
 ---
 
-## 10.3 Case Understanding Agent Prompt
+## 12.3 Case Understanding Agent prompt
 
 ### Purpose
 
@@ -752,9 +848,9 @@ Turn normalized artifacts and retrieved context into fused case understanding.
 * identify contradictions and gaps
 * support artifact fusion
 
-### Prompt Template
+### Prompt template
 
-```text id="x0fpcu"
+```text
 Role: Case Understanding Agent
 
 Mission:
@@ -806,11 +902,9 @@ Return:
 - usedMismatchRefs[]
 ```
 
-This agent now explicitly aligns with the final architecture’s **artifact fusion** role.
-
 ---
 
-## 10.4 Requirement Mapping Agent Prompt
+## 12.4 Requirement Mapping Agent prompt
 
 ### Purpose
 
@@ -827,9 +921,9 @@ Create explicit traceable links among requirements, flows, pages, states, transi
 * link defects to impacted requirements or states
 * produce semantic-state-aware mappings
 
-### Prompt Template
+### Prompt template
 
-```text id="8iln56"
+```text
 Role: Requirement Mapping Agent
 
 Mission:
@@ -873,27 +967,11 @@ Return:
 - ambiguities[]
 - usedSourceRefs[]
 - usedStateRefs[]
-
-For each requirement include:
-- requirementText
-- requirementType
-- sourceRefs[]
-
-For each mapping include:
-- fromType
-- fromRef
-- toType
-- toRef
-- mappingType
-- confidence
-- evidenceRefs[]
 ```
-
-This is one of the most important final-architecture upgrades.
 
 ---
 
-## 10.5 Risk & Strategy Agent Prompt
+## 12.5 Risk & Strategy Agent prompt
 
 ### Purpose
 
@@ -910,9 +988,9 @@ Decide what to test first and how.
 * consider reusable asset opportunities
 * consider mismatch impact
 
-### Prompt Template
+### Prompt template
 
-```text id="kkvo73"
+```text
 Role: Risk and Strategy Agent
 
 Mission:
@@ -968,7 +1046,7 @@ Return:
 
 ---
 
-## 10.6 Test Authoring Agent Prompt
+## 12.6 Test Authoring Agent prompt
 
 ### Purpose
 
@@ -986,9 +1064,9 @@ Generate scenarios, structured specs, Playwright specs, and assertion plans.
 * respect mismatch warnings
 * recommend playbook use where appropriate
 
-### Prompt Template
+### Prompt template
 
-```text id="s6wzj3"
+```text
 Role: Test Authoring Agent
 
 Mission:
@@ -1046,11 +1124,9 @@ Return:
 - usedMismatchRefs[]
 ```
 
-This prompt is now fully aligned with the final architecture.
-
 ---
 
-## 10.7 Failure Triage Agent Prompt
+## 12.7 Failure Triage Agent prompt
 
 ### Purpose
 
@@ -1067,9 +1143,9 @@ Interpret run failures and classify probable cause.
 * compare with similar historical failures
 * include healing influence if relevant
 
-### Prompt Template
+### Prompt template
 
-```text id="rchvv4"
+```text
 Role: Failure Triage Agent
 
 Mission:
@@ -1133,11 +1209,14 @@ Return:
 - usedSourceRefs[]
 - usedStateRefs[]
 - usedMismatchRefs[]
+- factInferenceNotes[]
 ```
+
+This is one of the most important prompts in the system and should stay very strict.
 
 ---
 
-## 10.8 Defect Drafting Agent Prompt
+## 12.8 Defect Drafting Agent prompt
 
 ### Purpose
 
@@ -1154,9 +1233,9 @@ Generate internal defect-quality packets.
 * preserve uncertainty when applicable
 * optionally use similar prior defect wording as drafting support
 
-### Prompt Template
+### Prompt template
 
-```text id="ory4qg"
+```text
 Role: Defect Drafting Agent
 
 Mission:
@@ -1215,7 +1294,7 @@ Return:
 
 ---
 
-## 10.9 Healing Agent Prompt
+## 12.9 Healing Agent prompt
 
 ### Purpose
 
@@ -1231,9 +1310,9 @@ Propose locator or abstraction healing safely.
 * recommend runtime fallback or review-needed update
 * create reviewable healing proposal
 
-### Prompt Template
+### Prompt template
 
-```text id="jlwm1x"
+```text
 Role: Healing Agent
 
 Mission:
@@ -1283,15 +1362,12 @@ Return:
 - supportingHistoryRefs[]
 - usedSourceRefs[]
 - usedStateRefs[]
+- factInferenceNotes[]
 ```
-
-This is a much stronger final-architecture version of healing.
 
 ---
 
-## 10.10 Playbook Recommendation Agent Prompt
-
-This is new and required by the final architecture.
+## 12.10 Playbook Recommendation Agent prompt
 
 ### Purpose
 
@@ -1305,9 +1381,9 @@ Decide whether a diagnostic run’s discoveries should be exported or promoted i
 * decide if playbook export is justified
 * decide if promotion should require review
 
-### Prompt Template
+### Prompt template
 
-```text id="0ydu9l"
+```text
 Role: Playbook Recommendation Agent
 
 Mission:
@@ -1356,7 +1432,7 @@ Return:
 
 ---
 
-## 10.11 Review Recommendation Agent Prompt
+## 12.11 Review Recommendation Agent prompt
 
 ### Purpose
 
@@ -1368,9 +1444,9 @@ Decide whether human review is necessary.
 * flag uncertain outputs
 * recommend approval workflow
 
-### Prompt Template
+### Prompt template
 
-```text id="7kmody"
+```text
 Role: Review Recommendation Agent
 
 Mission:
@@ -1417,7 +1493,7 @@ Return:
 
 ---
 
-## 10.12 Learning Agent Prompt
+## 12.12 Learning Agent prompt
 
 ### Purpose
 
@@ -1432,9 +1508,9 @@ Convert outcomes and review decisions into reusable learning signals.
 * record healing and playbook outcomes
 * avoid over-generalization
 
-### Prompt Template
+### Prompt template
 
-```text id="e5y9am"
+```text
 Role: Learning Agent
 
 Mission:
@@ -1479,15 +1555,13 @@ Return:
 
 ---
 
-# 11. Optional Agent: Context Gap Reporter
-
-This remains useful.
+# 13. Optional agent: Context Gap Reporter
 
 ### Purpose
 
 Detect when the context pack is insufficient for reliable agent action.
 
-### Updated use cases
+### Use cases
 
 * missing requirement-bearing chunks
 * missing state refs
@@ -1496,9 +1570,9 @@ Detect when the context pack is insufficient for reliable agent action.
 * insufficient evidence for triage
 * insufficient stability evidence for playbook export
 
-### Prompt Template
+### Prompt template
 
-```text id="qjykq4"
+```text
 Role: Context Gap Reporter
 
 Mission:
@@ -1520,15 +1594,13 @@ Return:
 
 ---
 
-# 12. Context Pack Design for Prompts
-
-Do not dump everything into every prompt.
+# 14. Context pack design for prompts
 
 Each agent should receive only what it needs.
 
 ## Recommended context pack fields
 
-```json id="1wwj1s"
+```json
 {
   "contextType": "test_authoring",
   "contextPackId": "CTXPACK-1001",
@@ -1548,43 +1620,51 @@ Each agent should receive only what it needs.
 
 ---
 
-# 13. Prompt Guardrails
+# 15. Prompt guardrails
 
-## 13.1 No unsupported invention
+## 15.1 No unsupported invention
 
-```text id="du7jfv"
+```text
 Do not invent missing requirements, IDs, URLs, selectors, states, transitions, evidence, reusable assets, playbooks, or historical precedents.
 If something is likely but not proven, mark it as inferred and lower confidence.
 ```
 
-## 13.2 No policy bypass
+## 15.2 No policy bypass
 
-```text id="alz2k5"
+```text
 Do not suggest auto-submission, auto-promotion, or auto-update if policy or confidence requires review.
 ```
 
-## 13.3 No hidden rewriting
+## 15.3 No hidden rewriting
 
-```text id="kzuglu"
+```text
 Do not silently replace approved asset logic or approved playbook logic. Propose updates separately.
 ```
 
-## 13.4 No context overflow assumptions
+## 15.4 No context overflow assumptions
 
-```text id="w0zqww"
+```text
 Do not assume the context pack represents the entire universe of relevant information.
 Use only what is provided, and report gaps explicitly.
 ```
 
-## 13.5 No mismatch suppression
+## 15.5 No mismatch suppression
 
-```text id="6s5hfx"
+```text
 Do not ignore mismatch warnings that materially affect the task. Surface them explicitly.
 ```
 
+## 15.6 No evidence inversion
+
+```text
+Do not let historical similarity override contradictory current evidence.
+```
+
+This is worth making explicit because it is one of the highest-risk failure modes for triage and healing agents.
+
 ---
 
-# 14. Structured Output Validation
+# 16. Structured output validation
 
 Every agent response should be validated after generation.
 
@@ -1609,7 +1689,7 @@ If invalid:
 
 ---
 
-# 15. Prompt Versioning
+# 17. Prompt versioning
 
 Each agent prompt should be versioned.
 
@@ -1624,7 +1704,7 @@ Each agent prompt should be versioned.
 
 ## Recommended metadata
 
-```json id="y7ap3o"
+```json
 {
   "agentName": "test-authoring-agent",
   "promptVersion": "v3.0.0-final-arch",
@@ -1645,9 +1725,9 @@ Store this with:
 
 ---
 
-# 16. Anti-Patterns to Avoid
+# 18. Anti-patterns to avoid
 
-## 16.1 One giant master prompt
+## 18.1 One giant master prompt
 
 Bad because:
 
@@ -1656,23 +1736,23 @@ Bad because:
 * harder debugging
 * less predictable outputs
 
-## 16.2 Unbounded free-form answers
+## 18.2 Unbounded free-form answers
 
 Bad because orchestration needs structured outputs.
 
-## 16.3 Prompts with direct action authority
+## 18.3 Prompts with direct action authority
 
 Bad because governance must remain external to the model.
 
-## 16.4 Prompts without source refs
+## 18.4 Prompts without source refs
 
 Bad because traceability becomes weak.
 
-## 16.5 Passing secrets into prompts
+## 18.5 Passing secrets into prompts
 
 Bad for security and auditing.
 
-## 16.6 Passing raw full retrieval dumps into prompts
+## 18.6 Passing raw full retrieval dumps into prompts
 
 Bad because:
 
@@ -1683,13 +1763,17 @@ Bad because:
 
 Use compact context packs instead.
 
-## 16.7 Letting diagnostic logic leak into regression decisions
+## 18.7 Letting diagnostic logic leak into regression decisions
 
 Bad because regression mode must remain stable and predictable.
 
+## 18.8 Letting history dominate evidence
+
+Bad because it causes false certainty and weak triage.
+
 ---
 
-# 17. Recommended Initial Prompt Set for V1
+# 19. Recommended initial prompt set for V1
 
 Start with these agents:
 
@@ -1709,11 +1793,11 @@ Optional:
 12. Context Gap Reporter
 13. Playbook Recommendation Agent
 
-This is the set that best fits the final architecture.
+This is still the right initial set.
 
 ---
 
-# 18. Final Prompt Design Summary
+# 20. Final prompt design summary
 
 Your platform’s agent prompts should be:
 
@@ -1725,6 +1809,7 @@ Your platform’s agent prompts should be:
 * mismatch-aware
 * schema-driven
 * confidence-aware where needed
+* evidence-first where current-run evidence exists
 * traceability-preserving
 * policy-bounded
 * versioned
@@ -1732,5 +1817,4 @@ Your platform’s agent prompts should be:
 
 The most important design choice remains:
 
-## Use many narrow production prompts that consume bounded context packs, semantic state refs, and policy constraints — not one broad “AI QA super prompt.”
-
+## Use many narrow production prompts that consume bounded context packs, semantic state refs, evidence refs, and policy constraints — not one broad AI QA super-prompt.

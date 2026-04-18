@@ -1,27 +1,21 @@
-Below is the **rewritten Part 7 — RAG Implementation Design**, updated to fit the **final architectural design**.
+I agree with most of Gemini’s comments. The strongest updates are:
 
-I kept the strongest parts of your previous RAG design:
+* make **Hybrid Graph-RAG** the explicit standard, not just “hybrid retrieval”
+* make **multi-hop reasoning over the Semantic State Map** more explicit as the main reason Graph-RAG is necessary for QA
+* make **Context Pack assembly** a first-class anti-hallucination layer
+* make **reranking** mandatory and explicit, especially for messy folder-based artifacts and multiple artifact versions
+* strengthen the **forensic retrieval path** for Healing by explicitly retrieving prior fingerprints, prior healing logs, and prior approved healing outcomes
+* make **diagnostic vs regression retrieval policy** sharper and more operational
+* strengthen **Mismatch RAG** as a safety net during new ingestion and understanding
+* emphasize the **Foundational Three** implementation priorities:
 
-* RAG as a first-class subsystem
-* hybrid retrieval instead of vector-only retrieval
-* graph expansion
-* reranking
-* context-pack assembly
-* agent-by-agent retrieval flows
-* retrieval logs and auditability
+  1. ingestion pipeline
+  2. state-map retriever
+  3. evidence packager
 
-I updated it to match the final architecture in these areas:
+I did **not** change the overall direction, because your uploaded Part 7 was already strong on Graph-RAG, semantic state retrieval, graph expansion, reranking, context packs, and auditability. The comments mostly sharpen the implementation priorities and make the retrieval behavior more explicitly production-grade. 
 
-* **distributed understanding**
-* **semantic state map as a first-class retrieval source**
-* **requirement mismatch awareness**
-* **dual execution modes**: diagnostic vs regression
-* **forensic healing retrieval**
-* **deterministic playbook retrieval**
-* **forensic-grade evidence schema**
-* **local trigger / shift-left awareness**
-
-Your previous Part 7 was already strong on Graph-RAG and service ownership. The main gap was that it did not yet fully model the final architecture’s **state layer**, **mismatch layer**, **healing layer**, **playbook layer**, and **mode-aware retrieval policies**. 
+Below is the **rewritten Part 7 — RAG Implementation Design**, kept full-length and aligned to the final architecture.
 
 ---
 
@@ -31,7 +25,13 @@ Your previous Part 7 was already strong on Graph-RAG and service ownership. The 
 
 ### Final Architecture-Aligned Version
 
-This section makes **Graph-RAG a first-class implementation subsystem** in your AI QA platform.
+#### Full merged rewrite
+
+This section defines the **RAG implementation subsystem** for your AI-powered QA platform.
+
+This is not “document search plus LLM.”
+
+This is a **multi-layered intelligence retrieval system** designed for software quality engineering, where the cost of wrong retrieval is high.
 
 It defines:
 
@@ -42,13 +42,15 @@ It defines:
 * hybrid retrieval logic
 * graph expansion logic
 * reranking
-* context pack assembly
+* context-pack assembly
 * semantic-state-aware retrieval
 * mismatch-aware retrieval
 * healing-aware retrieval
 * playbook-aware retrieval
+* evidence-aware retrieval
 * agent-by-agent retrieval flow
 * APIs/contracts for the Retrieval Service
+* implementation priorities
 
 This design matches your final architecture:
 
@@ -66,19 +68,60 @@ This design matches your final architecture:
 
 ---
 
-# 1. Purpose of RAG in This Platform
+# 1. Strategic RAG win
+
+The most important design decision is:
+
+## Vector RAG alone is not enough for QA
+
+Pure vector search can find:
+
+* similar text
+* similar wording
+* semantically close chunks
+
+But QA needs more than similarity.
+It needs **logic, sequence, state, and traceability**.
+
+Examples:
+
+* What happens after clicking Submit?
+* Which UI state should exist before this assertion?
+* Which transition takes the user from Login to Dashboard?
+* Which prior healing applies to this same UI element?
+* Which mismatch warning affects this requirement before test generation begins?
+
+A vector store alone is weak at this.
+
+So the correct standard is:
+
+## Hybrid Graph-RAG + Semantic State Retrieval
+
+That means:
+
+* retrieval index for lexical and semantic candidate search
+* knowledge graph for explicit relationship traversal
+* semantic state map for UI and flow logic
+* reranking for task precision
+* context packs for bounded grounded agent input
+
+This is the main architectural win in the RAG design. 
+
+---
+
+# 2. Purpose of RAG in this platform
 
 RAG is not just “search documents and paste them into a prompt.”
 
-In this QA platform, RAG must do **six** jobs.
+In this QA platform, RAG must do **eight** jobs.
 
-## 1.1 Ground agent reasoning
+## 2.1 Ground agent reasoning
 
 Agents must use source-backed context instead of guessing.
 
-## 1.2 Connect scattered QA knowledge
+## 2.2 Connect scattered QA knowledge
 
-The relevant truth is spread across:
+Relevant truth is spread across:
 
 * stories
 * wireframes
@@ -94,8 +137,10 @@ The relevant truth is spread across:
 * review decisions
 * healing logs
 * playbooks
+* evidence summaries
+* semantic traces
 
-## 1.3 Reuse prior QA intelligence
+## 2.3 Reuse prior QA intelligence
 
 The system should retrieve:
 
@@ -105,8 +150,9 @@ The system should retrieve:
 * approved assertions
 * accepted healing patterns
 * approved deterministic playbooks
+* state-signal baselines
 
-## 1.4 Ground semantic state reasoning
+## 2.4 Ground semantic state reasoning
 
 The system must retrieve not only text, but also:
 
@@ -116,7 +162,7 @@ The system must retrieve not only text, but also:
 * expected outcomes
 * fingerprint summaries
 
-## 1.5 Surface contradictions early
+## 2.5 Surface contradictions early
 
 The system must retrieve:
 
@@ -126,29 +172,41 @@ The system must retrieve:
 
 so that strategy and authoring do not operate on silently inconsistent requirements.
 
-## 1.6 Support mode-aware execution intelligence
+## 2.6 Support mode-aware execution intelligence
 
 The system must distinguish:
 
 * **diagnostic retrieval** for discovery and analysis
 * **regression retrieval** for approved, stable execution support
 
-So the correct design is:
+## 2.7 Support forensic interpretation
 
-## **Hybrid Graph-RAG + Semantic State Retrieval**
+The system must retrieve:
 
-* retrieval index for search
-* graph for relationships
-* reranking for task relevance
-* context packs for agent prompts
-* semantic state summaries as retrievable context
-* mismatch/healing/playbook summaries as retrievable context
+* evidence summaries
+* semantic traces
+* prior healing events
+* prior triage patterns
+* similar defect drafts
+
+## 2.8 Reconstruct the application’s mental model
+
+This is the most important conceptual point from the review.
+
+RAG must help the agent reconstruct:
+
+* what the application is supposed to do
+* what state it is currently in
+* what transition should happen next
+* what evidence proves success or failure
+
+That is a much stronger goal than “find related text.”
 
 ---
 
-# 2. RAG Subsystem Overview
+# 3. RAG subsystem overview
 
-```text id="0lxykk"
+```text id="scqv50"
 Source Artifacts
   -> Parse / Normalize
   -> Artifact Fusion
@@ -162,14 +220,65 @@ Source Artifacts
   -> Expand with Graph
   -> Rerank
   -> Build Context Pack
-  -> Feed Agent Prompt / Execution Preparation
+  -> Feed Agent Prompt / Execution Preparation / Triage
 ```
 
-This is the biggest conceptual upgrade from the prior Part 7: RAG now explicitly sits downstream of **distributed understanding**, **state-map generation**, and **mismatch detection**. 
+This remains the right top-level pipeline, but the review is right that the transition from **Ingestion RAG** to **State-Aware RAG** should be made more explicit. 
 
 ---
 
-# 3. RAG Architecture Components
+# 4. RAG operating layers
+
+The RAG subsystem should be understood as four layers.
+
+## 4.1 Ingestion RAG
+
+Transforms raw artifacts into retrieval- and graph-ready structured knowledge.
+
+Outputs:
+
+* normalized artifacts
+* chunks
+* metadata
+* fusion summaries
+* state summaries
+* mismatch summaries
+* retrieval views
+
+## 4.2 State-Aware RAG
+
+Makes semantic state maps retrievable and graph-expandable.
+
+Outputs:
+
+* state summaries
+* transition summaries
+* outcome summaries
+* fingerprint summaries
+* linked page/API/test relationships
+
+## 4.3 Forensic RAG
+
+Supports triage and healing using:
+
+* evidence summaries
+* semantic trace summaries
+* healing logs
+* historical failure summaries
+* defect support context
+
+## 4.4 Mode-Aware RAG
+
+Changes retrieval behavior depending on:
+
+* diagnostic mode
+* regression mode
+
+This is the right high-level conceptual split for the final architecture.
+
+---
+
+# 5. RAG architecture components
 
 The RAG subsystem should have these components:
 
@@ -177,26 +286,26 @@ The RAG subsystem should have these components:
 2. **Artifact Fusion Support Layer**
 3. **Semantic State Summarizer**
 4. **Mismatch Summary Generator**
-5. **Chunking Engine**
-6. **Metadata Enrichment Engine**
-7. **Indexing Pipeline**
-8. **Hybrid Retrieval Engine**
-9. **Graph Expansion Engine**
-10. **Reranker**
-11. **Context Pack Builder**
-12. **Retrieval Policy Layer**
-13. **Retrieval Audit Log**
+5. **Evidence Packager / Evidence Summarizer**
+6. **Chunking Engine**
+7. **Metadata Enrichment Engine**
+8. **Indexing Pipeline**
+9. **Hybrid Retrieval Engine**
+10. **Graph Expansion Engine**
+11. **Reranker**
+12. **Context Pack Builder**
+13. **Retrieval Policy Layer**
+14. **Retrieval Audit Log**
 
-The original list was already good; the final architecture requires explicit additions for:
+### Important refinement
 
-* semantic state summarization
-* mismatch summary generation
+The review is correct that the **Evidence Packager** should be treated as one of the foundational pipelines for RAG, not just a later convenience. It is essential for triage and forensic review. 
 
 ---
 
-# 4. Component Responsibilities
+# 6. Component responsibilities
 
-## 4.1 Artifact Normalizer
+## 6.1 Artifact Normalizer
 
 Transforms raw source material into structured representations.
 
@@ -215,7 +324,7 @@ Output:
 
 ---
 
-## 4.2 Artifact Fusion Support Layer
+## 6.2 Artifact Fusion Support Layer
 
 Supports the distributed understanding pipeline by producing retrieval-ready fused summaries.
 
@@ -232,11 +341,11 @@ Output:
 * likely flow/page/state/API hints
 * fusion conflicts and gaps
 
-This is new and aligns RAG with the final architecture’s distributed understanding model.
+This is where Ingestion RAG becomes useful to downstream agents.
 
 ---
 
-## 4.3 Semantic State Summarizer
+## 6.3 Semantic State Summarizer
 
 Creates retrievable summaries from semantic state maps.
 
@@ -254,13 +363,13 @@ Output:
 * state summaries
 * transition summaries
 * expected-outcome summaries
-* fingerprint summaries where useful
+* fingerprint summaries
 
-These summaries are critical because agents should not consume only raw JSON state maps.
+These summaries let agents retrieve the application’s logic model, not just descriptive text.
 
 ---
 
-## 4.4 Mismatch Summary Generator
+## 6.4 Mismatch Summary Generator
 
 Creates retrieval-ready mismatch summaries.
 
@@ -277,11 +386,37 @@ Output:
 * retrieval views for mismatches
 * conflict metadata for context packs
 
-This is new and required by the final architecture.
+This is the system’s main safety net against contradiction debt.
 
 ---
 
-## 4.5 Chunking Engine
+## 6.5 Evidence Packager / Evidence Summarizer
+
+Creates retrieval-ready evidence bundles and summaries.
+
+Input:
+
+* screenshots
+* traces
+* DOM snapshots
+* console logs
+* HAR / API evidence
+* semantic trace
+* reasoning logs
+
+Output:
+
+* evidence summaries
+* triage-ready bundles
+* healing-support bundles
+* playbook-support bundles
+* retrieval views for evidence artifacts
+
+This is one of the **Foundational Three** pipelines and should be treated as such.
+
+---
+
+## 6.6 Chunking Engine
 
 Breaks artifacts and generated summaries into retrievable units.
 
@@ -291,6 +426,7 @@ Input:
 * artifact type
 * parse result
 * state-map or mismatch summary if relevant
+* evidence summary if relevant
 
 Output:
 
@@ -300,7 +436,7 @@ Output:
 
 ---
 
-## 4.6 Metadata Enrichment Engine
+## 6.7 Metadata Enrichment Engine
 
 Adds structured labels and links to chunks.
 
@@ -319,11 +455,15 @@ Examples:
 * source quality
 * mismatchRef
 * playbookRef
+* healingRef
+* evidenceRef
 * executionMode relevance
+* approval status
+* recency/version hints
 
 ---
 
-## 4.7 Indexing Pipeline
+## 6.8 Indexing Pipeline
 
 Writes chunks and retrieval views to search/vector infrastructure.
 
@@ -337,7 +477,7 @@ Responsibilities:
 
 ---
 
-## 4.8 Hybrid Retrieval Engine
+## 6.9 Hybrid Retrieval Engine
 
 Retrieves candidate content using:
 
@@ -346,9 +486,11 @@ Retrieves candidate content using:
 * metadata filters
 * exact reference matching
 
+This is the entry point, not the whole retrieval story.
+
 ---
 
-## 4.9 Graph Expansion Engine
+## 6.10 Graph Expansion Engine
 
 Expands retrieved candidates using graph relationships.
 
@@ -364,9 +506,11 @@ retrieved a requirement chunk → expand to:
 * linked known defect
 * linked mismatch warning
 
+This is what turns similar text into navigable logic.
+
 ---
 
-## 4.10 Reranker
+## 6.11 Reranker
 
 Reorders candidates using:
 
@@ -379,10 +523,21 @@ Reorders candidates using:
 * confidence and recency
 * mismatch relevance
 * healing/playbook relevance
+* version recency / approved-vs-old artifact preference
+
+### Important refinement
+
+The review is right that reranking should be treated as **mandatory**, not optional.
+Folder-based artifacts can be messy, duplicated, or stale. A reranker is needed to prefer:
+
+* approved wireframe version
+* latest accepted state map summary
+* approved asset instead of draft
+* exact-state history over loosely similar history
 
 ---
 
-## 4.11 Context Pack Builder
+## 6.12 Context Pack Builder
 
 Builds task-shaped prompt context.
 
@@ -397,10 +552,13 @@ It should produce:
 * playbook candidates where applicable
 * conflicts/gaps
 * source refs
+* evidence bundle refs where relevant
+
+This remains one of the best parts of the design.
 
 ---
 
-## 4.12 Retrieval Policy Layer
+## 6.13 Retrieval Policy Layer
 
 Controls:
 
@@ -415,7 +573,7 @@ Controls:
 
 ---
 
-## 4.13 Retrieval Audit Log
+## 6.14 Retrieval Audit Log
 
 Stores:
 
@@ -427,16 +585,17 @@ Stores:
 * timing
 * execution mode
 * retrieval degradation
+* reranking notes
 
-This remains critical and becomes even more important in the final architecture.
+This remains critical and becomes even more important in a multi-layer retrieval system.
 
 ---
 
-# 5. RAG Data Categories
+# 7. RAG data categories
 
 The index should distinguish content categories.
 
-## 5.1 Source artifact content
+## 7.1 Source artifact content
 
 * stories
 * rules
@@ -446,13 +605,13 @@ The index should distinguish content categories.
 * browser page captures
 * defect docs
 
-## 5.2 Fused understanding content
+## 7.2 Fused understanding content
 
 * case understanding summaries
 * artifact fusion summaries
 * identified conflicts/gaps
 
-## 5.3 Semantic state content
+## 7.3 Semantic state content
 
 * state-map summaries
 * UI state summaries
@@ -460,13 +619,13 @@ The index should distinguish content categories.
 * expected outcome summaries
 * fingerprint summaries
 
-## 5.4 Mismatch content
+## 7.4 Mismatch content
 
 * mismatch warnings
 * mismatch explanation summaries
 * conflict summaries
 
-## 5.5 Generated QA assets
+## 7.5 Generated QA assets
 
 * strategy summaries
 * scenario summaries
@@ -474,7 +633,7 @@ The index should distinguish content categories.
 * assertion summaries
 * reusable flow summaries
 
-## 5.6 Runtime history
+## 7.6 Runtime history
 
 * run summaries
 * failure summaries
@@ -482,29 +641,37 @@ The index should distinguish content categories.
 * defect draft summaries
 * review outcomes
 
-## 5.7 Healing and playbook content
+## 7.7 Healing and playbook content
 
 * healing summaries
 * accepted/rejected healing patterns
 * playbook summaries
 * discovered state-signal summaries
 
-## 5.8 Learning content
+## 7.8 Evidence and forensic content
+
+* evidence summaries
+* semantic trace summaries
+* reasoning log summaries
+* triage bundles
+* visual diff summaries
+
+## 7.9 Learning content
 
 * accepted healing patterns
 * repeated unstable selectors/states
 * recurring failure patterns
 * accepted/rejected playbook patterns
 
-This is the most direct expansion of the earlier RAG data categories.
+This broader categorization better reflects the final architecture’s forensic side.
 
 ---
 
-# 6. Current-Stage RAG Sources
+# 8. Current-stage RAG sources
 
 For your current stage, RAG should use these inputs:
 
-## 6.1 Folder-based sources
+## 8.1 Folder-based sources
 
 * `/stories`
 * `/wireframes`
@@ -515,7 +682,7 @@ For your current stage, RAG should use these inputs:
 * `/expected`
 * `/refs/urls.yaml`
 
-## 6.2 Browser-readable sources
+## 8.2 Browser-readable sources
 
 * story pages
 * defect pages
@@ -523,7 +690,7 @@ For your current stage, RAG should use these inputs:
 * design preview pages
 * internal documentation pages
 
-## 6.3 Internal platform history
+## 8.3 Internal platform history
 
 * case understanding summaries
 * semantic state maps and summaries
@@ -536,17 +703,20 @@ For your current stage, RAG should use these inputs:
 * review decisions
 * healing events/logs
 * playbook summaries
+* evidence summaries
 * learning signals
 
 ---
 
-# 7. Chunking Design
+# 9. Chunking design
 
-Chunking must be **artifact-type-aware** and now also **state-type-aware**.
+Chunking must be:
 
----
+* artifact-type-aware
+* state-type-aware
+* forensic-type-aware
 
-## 7.1 Story documents
+## 9.1 Story documents
 
 Chunk by:
 
@@ -557,9 +727,7 @@ Chunk by:
 * validation section
 * notes/constraints
 
----
-
-## 7.2 Rules documents
+## 9.2 Rules documents
 
 Chunk by:
 
@@ -568,9 +736,7 @@ Chunk by:
 * exception block
 * edge cases
 
----
-
-## 7.3 API specs
+## 9.3 API specs
 
 Chunk by:
 
@@ -580,9 +746,7 @@ Chunk by:
 * error responses
 * auth notes
 
----
-
-## 7.4 Defect documents
+## 9.4 Defect documents
 
 Chunk by:
 
@@ -593,9 +757,7 @@ Chunk by:
 * root cause notes
 * workaround notes
 
----
-
-## 7.5 Browser-readable captured pages
+## 9.5 Browser-readable captured pages
 
 Chunk by:
 
@@ -604,9 +766,7 @@ Chunk by:
 * main body section
 * identified ticket/story/bug info
 
----
-
-## 7.6 Wireframes and screenshots
+## 9.6 Wireframes and screenshots
 
 Do not index raw binaries.
 Index:
@@ -618,11 +778,7 @@ Index:
 * labeled expectations
 * likely page/state summary
 
----
-
-## 7.7 Semantic state maps
-
-This is new.
+## 9.7 Semantic state maps
 
 Chunk by:
 
@@ -630,20 +786,9 @@ Chunk by:
 * state summary
 * transition summary
 * expected-outcome summary
-* fingerprint summary where useful
+* fingerprint summary
 
-Example chunks:
-
-* `Login State Map Summary`
-* `State — Login Form Ready`
-* `Transition — Submit Valid Credentials`
-* `Expected Outcome — Dashboard Stable`
-
----
-
-## 7.8 Mismatch warnings
-
-This is new.
+## 9.8 Mismatch warnings
 
 Chunk by:
 
@@ -651,11 +796,8 @@ Chunk by:
 * source conflict explanation
 * affected requirement/page/state/API explanation
 
----
+## 9.9 Test assets
 
-## 7.9 Test assets
-
-Do not only chunk raw code.
 Prefer summary chunks:
 
 * scenario summary
@@ -664,9 +806,7 @@ Prefer summary chunks:
 * reusable module description
 * playbook linkage summary if present
 
----
-
-## 7.10 Run and triage history
+## 9.10 Run and triage history
 
 Chunk by:
 
@@ -676,11 +816,7 @@ Chunk by:
 * evidence interpretation summary
 * decision summary
 
----
-
-## 7.11 Healing and playbook history
-
-This is new.
+## 9.11 Healing and playbook history
 
 ### Healing
 
@@ -698,15 +834,27 @@ Chunk by:
 * discovered state signals
 * promotion decision summary
 
+## 9.12 Evidence bundles
+
+Chunk by:
+
+* evidence summary
+* semantic trace summary
+* reasoning summary
+* triage-support summary
+* playbook-support summary
+
+This extra chunk class is important for forensic RAG.
+
 ---
 
-# 8. Chunk Schema
+# 10. Chunk schema
 
 Every chunk should carry rich metadata.
 
-## 8.1 Base chunk fields
+## 10.1 Base chunk fields
 
-```json id="x1hpcr"
+```json id="gqxolb"
 {
   "chunkId": "CHUNK-9001",
   "sourceType": "artifact_chunk",
@@ -721,9 +869,9 @@ Every chunk should carry rich metadata.
 }
 ```
 
-## 8.2 Recommended metadata fields
+## 10.2 Recommended metadata fields
 
-```json id="mxuxlf"
+```json id="g7w98h"
 {
   "storyId": "US-101",
   "defectId": null,
@@ -735,6 +883,8 @@ Every chunk should carry rich metadata.
   "requirementRefs": ["REQ-501"],
   "mismatchRefs": [],
   "playbookRefs": [],
+  "healingRefs": [],
+  "evidenceRefs": [],
   "priority": "high",
   "status": "active",
   "sourceQuality": "high",
@@ -744,21 +894,15 @@ Every chunk should carry rich metadata.
 }
 ```
 
-The additions here are important:
-
-* `stateRefs`
-* `transitionRefs`
-* `mismatchRefs`
-* `playbookRefs`
-* `executionModeScope`
+These fields are essential for precise retrieval and bounded context assembly.
 
 ---
 
-# 9. Indexing Strategy
+# 11. Indexing strategy
 
 Use **hybrid indexing**.
 
-## 9.1 Search fields
+## 11.1 Search fields
 
 Store:
 
@@ -768,14 +912,14 @@ Store:
 * IDs and exact references
 * metadata filters
 
-## 9.2 Vector fields
+## 11.2 Vector fields
 
 Store embedding vectors for:
 
 * chunk text
 * optionally chunk title + text combined
 
-## 9.3 Filter fields
+## 11.3 Filter fields
 
 Must support filters on:
 
@@ -792,16 +936,17 @@ Must support filters on:
 * environmentScope
 * executionModeScope
 * sourceType
+* version recency / document status if available
 
-This extends the earlier indexing strategy to match the final architecture’s state-aware and mode-aware retrieval needs.
+This last part is important when multiple versions of a wireframe or summary exist.
 
 ---
 
-# 10. Retrieval Modes
+# 12. Retrieval modes
 
 The Retrieval Service should support several modes.
 
-## 10.1 Case understanding mode
+## 12.1 Case understanding mode
 
 Used by:
 
@@ -815,8 +960,15 @@ Focus:
 * browser-captured pages
 * fusion summaries
 * conflicts/gaps
+* existing mismatch warnings for the same case
 
-## 10.2 Requirement mapping mode
+### Important refinement
+
+Gemini’s comment is right: **Mismatch RAG** should feed intake/understanding to prevent contradiction debt from accumulating.
+
+---
+
+## 12.2 Requirement mapping mode
 
 Used by:
 
@@ -830,7 +982,9 @@ Focus:
 * known defects
 * mismatch warnings
 
-## 10.3 Strategy mode
+---
+
+## 12.3 Strategy mode
 
 Used by:
 
@@ -847,7 +1001,9 @@ Focus:
 * critical rules
 * mismatch warnings
 
-## 10.4 Authoring mode
+---
+
+## 12.4 Authoring mode
 
 Used by:
 
@@ -864,7 +1020,9 @@ Focus:
 * approved playbooks if relevant
 * mismatch warnings
 
-## 10.5 Triage mode
+---
+
+## 12.5 Triage mode
 
 Used by:
 
@@ -872,14 +1030,21 @@ Used by:
 
 Focus:
 
+* current run evidence summaries
+* semantic trace summaries
 * similar historical runs
 * triage summaries
 * similar defect drafts
-* linked requirements
-* semantic trace/evidence summaries
+* related requirements
 * healing history if relevant
 
-## 10.6 Healing mode
+### Important refinement
+
+Current evidence should be packaged first, then historical analogs added as support.
+
+---
+
+## 12.6 Healing mode
 
 Used by:
 
@@ -892,8 +1057,13 @@ Focus:
 * instability signals
 * state refs
 * screenshot/DOM summaries
+* prior approved healing outcomes
 
-## 10.7 Playbook review mode
+This is the explicit forensic retrieval path the review highlighted.
+
+---
+
+## 12.7 Playbook review mode
 
 Used by:
 
@@ -906,8 +1076,11 @@ Focus:
 * similar approved/rejected playbooks
 * mismatch warnings
 * healing context
+* performance baseline context if available
 
-## 10.8 Learning mode
+---
+
+## 12.8 Learning mode
 
 Used by:
 
@@ -921,18 +1094,16 @@ Focus:
 * repeated mismatch patterns
 * repeated playbook outcomes
 
-This is one of the clearest upgrades over the earlier Part 7.
-
 ---
 
-# 11. Retrieval Query Model
+# 13. Retrieval query model
 
 Queries should not just be free text.
 Use a structured query format.
 
-## 11.1 Retrieval query shape
+## 13.1 Retrieval query shape
 
-```json id="odnnpp"
+```json id="4qqthv"
 {
   "mode": "strategy",
   "caseId": "CASE-101",
@@ -949,17 +1120,19 @@ Use a structured query format.
 }
 ```
 
-### Important final-architecture additions
+Important fields:
 
 * `executionMode`
 * `includeMismatchWarnings`
-* state-aware source filtering
+* state-aware filters
+* approval-aware filters
+* version/recency controls where needed
 
 ---
 
-# 12. Hybrid Retrieval Flow
+# 14. Hybrid retrieval flow
 
-## 12.1 Candidate generation
+## 14.1 Candidate generation
 
 Get candidates from:
 
@@ -968,11 +1141,11 @@ Get candidates from:
 * exact ID matching
 * metadata filters
 
-## 12.2 Merge candidate pools
+## 14.2 Merge candidate pools
 
 Merge results from all retrieval channels.
 
-## 12.3 Deduplicate
+## 14.3 Deduplicate
 
 Remove duplicates by:
 
@@ -980,27 +1153,27 @@ Remove duplicates by:
 * chunk similarity
 * semantic duplication
 
-## 12.4 Graph expansion
+## 14.4 Graph expansion
 
 Expand through graph relations.
 
-## 12.5 Rerank
+## 14.5 Rerank
 
 Apply task-aware scoring.
 
-## 12.6 Build context pack
+## 14.6 Build context pack
 
 Return final grounded context.
 
-This remains correct, but graph expansion and reranking must now understand states, mismatches, healing, and playbooks too. 
+This is still correct, but in this revision the **rerank step** is treated as mandatory and central.
 
 ---
 
-# 13. Graph Expansion Rules
+# 15. Graph expansion rules
 
 Graph expansion should be bounded and task-specific.
 
-## 13.1 Example expansion from a requirement chunk
+## 15.1 Example expansion from a requirement chunk
 
 Expand to:
 
@@ -1012,7 +1185,7 @@ Expand to:
 * linked known defect
 * linked approved scenario/test
 
-## 13.2 Example expansion from a state summary
+## 15.2 Example expansion from a state summary
 
 Expand to:
 
@@ -1022,7 +1195,7 @@ Expand to:
 * linked assertions
 * linked playbooks
 
-## 13.3 Example expansion from a failed run summary
+## 15.3 Example expansion from a failed run summary
 
 Expand to:
 
@@ -1034,7 +1207,7 @@ Expand to:
 * linked defect drafts
 * linked healing events
 
-## 13.4 Example expansion from a healing summary
+## 15.4 Example expansion from a healing summary
 
 Expand to:
 
@@ -1042,9 +1215,10 @@ Expand to:
 * linked state
 * linked UI element
 * similar instability signals
+* prior approved healing outcomes
 * review outcomes
 
-## 13.5 Expansion depth
+## 15.5 Expansion depth
 
 Recommended:
 
@@ -1052,13 +1226,22 @@ Recommended:
 * avoid unbounded traversal
 * prefer explicit high-signal relationships
 
+This is how the system gets multi-hop reasoning without uncontrolled graph wandering.
+
 ---
 
-# 14. Reranking Strategy
+# 16. Reranking strategy
 
-Reranking must depend on the agent task and execution mode.
+Reranking must depend on:
 
-## 14.1 Signals to score
+* agent task
+* execution mode
+* approval state
+* case fidelity
+* state fidelity
+* artifact recency/version quality
+
+## 16.1 Signals to score
 
 * semantic similarity
 * keyword match
@@ -1074,24 +1257,36 @@ Reranking must depend on the agent task and execution mode.
 * confidence of linked entities
 * mismatch relevance
 * diagnostic vs regression compatibility
+* evidence freshness
+* artifact version quality
 
-## 14.2 Example score concept
+## 16.2 Example score concept
 
-```text id="tad4jd"
+```text id="mhvbc8"
 final_score =
-  0.25 * semantic_similarity +
-  0.15 * keyword_match +
+  0.22 * semantic_similarity +
+  0.12 * keyword_match +
   0.15 * same_case_boost +
   0.10 * same_flow_boost +
   0.10 * same_state_boost +
   0.10 * source_quality_boost +
   0.10 * approval_status_boost +
-  0.05 * recency_boost
+  0.06 * recency_boost +
+  0.05 * graph_proximity_boost
 ```
 
-This does not need to be exact initially, but the design should support weighted reranking.
+## 16.3 Cross-encoder recommendation
 
-## 14.3 Mode-aware reranking
+Gemini’s comment is correct: a dedicated reranker such as a **cross-encoder** is a strong fit here, especially for:
+
+* multiple wireframe versions
+* duplicate summaries
+* approved vs draft asset ambiguity
+* loosely similar but state-wrong evidence
+
+Use it where latency budget allows.
+
+## 16.4 Mode-aware reranking
 
 ### In regression mode
 
@@ -1100,12 +1295,14 @@ Boost:
 * approved assets
 * approved playbooks
 * stable/high-confidence history
+* exact state matches
 
 Penalize:
 
 * draft assets
 * weakly supported healing summaries
 * unresolved mismatches
+* broad exploratory history
 
 ### In diagnostic mode
 
@@ -1115,20 +1312,17 @@ Allow:
 * richer exploratory history
 * healing history
 * diagnostic playbook candidates
+* broader graph expansion
 
-This is new and required by the final architecture.
+This sharpens the diagnostic-vs-regression split as the review recommended.
 
 ---
 
-# 15. Context Pack Builder
-
-This is the key output of RAG.
+# 17. Context pack builder
 
 A context pack should be compact, task-shaped, and source-grounded.
 
----
-
-## 15.1 Context pack sections
+## 17.1 Context pack sections
 
 ### A. Facts
 
@@ -1168,7 +1362,16 @@ Ambiguities, missing info, contradictions, mismatch warnings
 
 Relevant modules, assertions, flows, and possibly playbooks
 
-### G. Mode hints
+### G. Evidence bundle refs
+
+For triage/healing/playbook review:
+
+* semantic trace
+* screenshot summary
+* DOM snapshot summary
+* reasoning summary
+
+### H. Mode hints
 
 Optional execution-mode-specific constraints:
 
@@ -1177,11 +1380,13 @@ Optional execution-mode-specific constraints:
 * mismatch unresolved
 * healing unstable
 
+This remains one of the best anti-hallucination design choices in the whole spec. 
+
 ---
 
-## 15.2 Example context pack
+## 17.2 Example context pack
 
-```json id="58jip3"
+```json id="wkltlb"
 {
   "contextType": "test_authoring",
   "caseId": "CASE-101",
@@ -1246,15 +1451,11 @@ Optional execution-mode-specific constraints:
 }
 ```
 
-This is the final-architecture version of the earlier context-pack example.
-
 ---
 
-# 16. Agent-by-Agent RAG Flows
+# 18. Agent-by-agent RAG flows
 
----
-
-## 16.1 Case Understanding Agent
+## 18.1 Case Understanding Agent
 
 ### Retrieval goal
 
@@ -1268,6 +1469,7 @@ Understand the case completely.
 * browser-captured pages
 * defect docs
 * fusion summaries
+* mismatch warnings
 
 ### Graph expansion
 
@@ -1282,7 +1484,7 @@ Understand the case completely.
 
 ---
 
-## 16.2 Requirement Mapping Agent
+## 18.2 Requirement Mapping Agent
 
 ### Retrieval goal
 
@@ -1313,7 +1515,7 @@ Create evidence-backed mappings.
 
 ---
 
-## 16.3 Risk & Strategy Agent
+## 18.3 Risk & Strategy Agent
 
 ### Retrieval goal
 
@@ -1342,7 +1544,7 @@ Identify what matters most.
 
 ---
 
-## 16.4 Test Authoring Agent
+## 18.4 Test Authoring Agent
 
 ### Retrieval goal
 
@@ -1374,7 +1576,7 @@ Reuse before creating from scratch.
 
 ---
 
-## 16.5 Failure Triage Agent
+## 18.5 Failure Triage Agent
 
 ### Retrieval goal
 
@@ -1382,12 +1584,12 @@ Compare current failure to known patterns.
 
 ### Query sources
 
+* current evidence summaries
+* semantic trace summaries
 * prior run summaries
 * similar triage summaries
 * similar defect drafts
 * related requirements
-* evidence summaries
-* semantic trace summaries
 * healing history if relevant
 
 ### Graph expansion
@@ -1403,7 +1605,7 @@ Compare current failure to known patterns.
 
 ---
 
-## 16.6 Healing Agent
+## 18.6 Healing Agent
 
 ### Retrieval goal
 
@@ -1416,6 +1618,8 @@ Compare current UI shift to known healing and instability patterns.
 * instability learning signals
 * state refs
 * state-map summaries
+* current screenshot/DOM summaries
+* prior approved healing outcomes
 
 ### Graph expansion
 
@@ -1428,9 +1632,11 @@ Compare current UI shift to known healing and instability patterns.
 
 * healing proposal with confidence
 
+This is the clearest forensic retrieval path in the system.
+
 ---
 
-## 16.7 Playbook Recommendation Agent
+## 18.7 Playbook Recommendation Agent
 
 ### Retrieval goal
 
@@ -1443,6 +1649,7 @@ Decide whether diagnostic discoveries are stable enough to export/promote.
 * approved/rejected playbook summaries
 * mismatch warnings
 * healing summaries if any
+* performance baseline history if available
 
 ### Graph expansion
 
@@ -1456,7 +1663,7 @@ Decide whether diagnostic discoveries are stable enough to export/promote.
 
 ---
 
-## 16.8 Defect Drafting Agent
+## 18.8 Defect Drafting Agent
 
 ### Retrieval goal
 
@@ -1467,6 +1674,7 @@ Write a grounded issue draft.
 * triage result
 * linked requirement summary
 * linked state summary
+* current evidence bundle summaries
 * similar defect drafts
 * historical wording patterns
 
@@ -1483,7 +1691,7 @@ Write a grounded issue draft.
 
 ---
 
-## 16.9 Learning Agent
+## 18.9 Learning Agent
 
 ### Retrieval goal
 
@@ -1511,19 +1719,17 @@ Find repeat patterns.
 
 ---
 
-# 17. Retrieval Service APIs
+# 19. Retrieval service APIs
 
 This should remain a dedicated internal service.
 
----
-
-## 17.1 `indexChunks`
+## 19.1 `indexChunks`
 
 Indexes chunks into retrieval store.
 
 ### Request
 
-```json id="l153qs"
+```json id="ud540a"
 {
   "items": [
     {
@@ -1542,7 +1748,7 @@ Indexes chunks into retrieval store.
 
 ### Response
 
-```json id="4jtvhl"
+```json id="gltq2s"
 {
   "indexed": 1,
   "failed": 0
@@ -1551,13 +1757,13 @@ Indexes chunks into retrieval store.
 
 ---
 
-## 17.2 `search`
+## 19.2 `search`
 
 Hybrid retrieval.
 
 ### Request
 
-```json id="b1wzh4"
+```json id="p5463g"
 {
   "mode": "strategy",
   "executionMode": "diagnostic",
@@ -1572,7 +1778,7 @@ Hybrid retrieval.
 
 ### Response
 
-```json id="5m6fie"
+```json id="jmy6p4"
 {
   "candidates": [
     {
@@ -1590,13 +1796,13 @@ Hybrid retrieval.
 
 ---
 
-## 17.3 `expandGraphContext`
+## 19.3 `expandGraphContext`
 
 Expands IDs into linked entities.
 
 ### Request
 
-```json id="jr3rn1"
+```json id="6myhis"
 {
   "seedRefs": ["REQ-501", "STATE-LOGIN-READY"],
   "maxDepth": 1,
@@ -1606,7 +1812,7 @@ Expands IDs into linked entities.
 
 ### Response
 
-```json id="9875tq"
+```json id="5b7ow9"
 {
   "entities": [
     {"id": "PAGE-301", "type": "Page", "name": "Login Page"},
@@ -1620,13 +1826,13 @@ Expands IDs into linked entities.
 
 ---
 
-## 17.4 `buildContextPack`
+## 19.4 `buildContextPack`
 
 Builds final agent-ready context.
 
 ### Request
 
-```json id="mfhm0m"
+```json id="pdsvmd"
 {
   "agentType": "test_authoring",
   "caseId": "CASE-101",
@@ -1647,7 +1853,7 @@ Builds final agent-ready context.
 
 ### Response
 
-```json id="9g2yy2"
+```json id="vp7r4v"
 {
   "contextPack": {
     "facts": {},
@@ -1658,6 +1864,7 @@ Builds final agent-ready context.
     "relatedHistory": [],
     "mismatchWarnings": [],
     "playbooks": [],
+    "evidenceBundles": [],
     "gaps": []
   }
 }
@@ -1665,7 +1872,7 @@ Builds final agent-ready context.
 
 ---
 
-# 18. Retrieval Policies
+# 20. Retrieval policies
 
 Different agents should have different retrieval policies.
 
@@ -1692,6 +1899,8 @@ Prefer:
 * approved assets
 * approved playbooks
 * approved stable history
+* exact state matches
+* narrow graph expansion
 
 ### Diagnostic-oriented retrieval
 
@@ -1701,16 +1910,17 @@ Allow:
 * healing patterns
 * discovery-oriented summaries
 * playbook candidates
+* broader graph expansion
 
-This policy split is required by the final architecture.
+This sharper split is one of the best improvements from the review.
 
 ---
 
-# 19. RAG Logging and Observability
+# 21. RAG logging and observability
 
 You need to know what the system retrieved and why.
 
-## 19.1 Log for each retrieval
+## 21.1 Log for each retrieval
 
 Store:
 
@@ -1725,7 +1935,7 @@ Store:
 * errors
 * retrieval degradation notes
 
-## 19.2 Why this matters
+## 21.2 Why this matters
 
 This helps debug:
 
@@ -1739,29 +1949,9 @@ This helps debug:
 
 ---
 
-# 20. RAG Records to Support
+# 22. RAG failure modes and safeguards
 
-These records were already present in your operational model, but now they must be used with the final-architecture intent:
-
-* `retrieval_query_log`
-* `retrieval_result_log`
-* `context_pack_log`
-
-And they must now explicitly support:
-
-* `executionMode`
-* `stateRefs`
-* `mismatchRefs`
-* `playbookRefs`
-* `healingRefs`
-
-This is a usage correction rather than a net-new schema concept.
-
----
-
-# 21. RAG Failure Modes and Safeguards
-
-## 21.1 Failure mode: too much context
+## 22.1 Failure mode: too much context
 
 Fix:
 
@@ -1769,7 +1959,7 @@ Fix:
 * reranking
 * context compaction
 
-## 21.2 Failure mode: wrong history dominates
+## 22.2 Failure mode: wrong history dominates
 
 Fix:
 
@@ -1778,14 +1968,14 @@ Fix:
 * approval-status weighting
 * recency controls
 
-## 21.3 Failure mode: graph over-expansion
+## 22.3 Failure mode: graph over-expansion
 
 Fix:
 
 * max expansion depth
 * relationship allowlist per agent task
 
-## 21.4 Failure mode: low-quality browser captures
+## 22.4 Failure mode: low-quality browser captures
 
 Fix:
 
@@ -1793,21 +1983,21 @@ Fix:
 * provenance preserved
 * lower ranking unless corroborated
 
-## 21.5 Failure mode: prompt contamination from drafts
+## 22.5 Failure mode: prompt contamination from drafts
 
 Fix:
 
 * filter by approval state when needed
 * prefer approved assets by default in authoring and strategy
 
-## 21.6 Failure mode: unresolved mismatches silently ignored
+## 22.6 Failure mode: unresolved mismatches silently ignored
 
 Fix:
 
 * include mismatch warnings in relevant context packs by default
 * raise mismatch severity in reranking when task depends on affected state or requirement
 
-## 21.7 Failure mode: diagnostic artifacts contaminate regression support
+## 22.7 Failure mode: diagnostic artifacts contaminate regression support
 
 Fix:
 
@@ -1815,52 +2005,92 @@ Fix:
 * approved-playbook-only bias in regression mode
 * downrank exploratory artifacts unless explicitly requested
 
-## 21.8 Failure mode: healing history overpowers current evidence
+## 22.8 Failure mode: healing history overpowers current evidence
 
 Fix:
 
 * current-run evidence first in triage/healing
 * healing summaries treated as support, not proof
 
-These safeguards are direct consequences of the final architecture.
+These safeguards remain essential.
 
 ---
 
-# 22. Initial RAG Implementation Order
+# 23. Foundational three implementation priorities
 
-Build in this order:
+The review is right that the best initial build path is:
 
-## Phase A
+## 23.1 The ingestion pipeline
+
+Normalize manual folder files into:
+
+* chunks
+* entities
+* graph links
+* retrieval views
+
+## 23.2 The state-map retriever
+
+Enable agents to ask:
+
+* what is the current state?
+* what state should follow?
+* what transition belongs here?
+
+and receive fused UI + story context.
+
+## 23.3 The evidence packager
+
+Automate assembly of:
+
+* screenshots
+* logs
+* traces
+* semantic trace
+* DOM summaries
+
+into a retrieval-ready bundle for triage and healing.
+
+This is the best practical interpretation of the review’s implementation priorities. 
+
+---
+
+# 24. Initial RAG implementation order
+
+Build in this order.
+
+## Phase A — Foundational Three
 
 1. artifact chunking
 2. metadata enrichment
 3. hybrid index
 4. simple search API
+5. graph linking
+6. state-map summaries
+7. evidence summaries and bundles
 
-## Phase B
+## Phase B — Core Graph-RAG
 
-5. artifact fusion summaries
-6. semantic state summaries
-7. mismatch summaries
-8. graph linking
-9. graph expansion API
-10. reranking
-11. context pack builder
+8. graph expansion API
+9. reranking
+10. context pack builder
+11. mismatch summaries
+12. state-aware retriever
 
-## Phase C
+## Phase C — Agent-specialized retrieval
 
-12. agent-specific retrieval modes
-13. retrieval logs
-14. history-aware triage retrieval
-15. reusable asset retrieval for authoring
-16. healing-aware retrieval
-17. playbook-aware retrieval
+13. agent-specific retrieval modes
+14. retrieval logs
+15. history-aware triage retrieval
+16. reusable asset retrieval for authoring
+17. healing-aware retrieval
+18. playbook-aware retrieval
 
-This is the final-architecture-aligned implementation sequence.
+This is a more explicit and stronger implementation plan than before.
 
 ---
 
-# 23. Minimal RAG for First Working Version
+# 25. Minimal RAG for first working version
 
 If you want the smallest serious implementation that still fits the final architecture:
 
@@ -1879,11 +2109,17 @@ If you want the smallest serious implementation that still fits the final archit
   * Risk & Strategy Agent
   * Test Authoring Agent
 
-That already gives major value while staying aligned with the final architecture.
+Then add:
+
+* evidence summary retrieval
+* healing history retrieval
+* playbook summary retrieval
+
+That gives real value without overbuilding.
 
 ---
 
-# 24. Full RAG Summary
+# 26. Full RAG summary
 
 The correct RAG design for your final architecture is:
 
@@ -1908,6 +2144,24 @@ For each agent task:
 * build context pack
 * feed grounded prompt
 
+## State-Aware RAG
+
+Ground reasoning in:
+
+* semantic states
+* transitions
+* expected outcomes
+* fingerprints
+
+## Forensic RAG
+
+Ground triage and healing in:
+
+* current evidence bundles
+* semantic trace
+* prior healing events
+* prior defect/triage analogs
+
 ## Historical RAG
 
 Reuse:
@@ -1920,15 +2174,6 @@ Reuse:
 * approved playbooks
 * learning signals
 
-## State-Aware RAG
-
-Ground reasoning in:
-
-* semantic states
-* transitions
-* expected outcomes
-* fingerprints
-
 ## Mode-Aware RAG
 
 Differentiate:
@@ -1940,13 +2185,15 @@ That makes RAG an actual implementation subsystem for the final architecture, no
 
 ---
 
-# 25. Final Position
+# 27. Final position
 
 So the corrected implementation view is:
 
 * **Distributed Understanding Service** owns parsing, normalization, artifact fusion support, and chunk preparation
 * **Semantic State Service** owns state-map generation and state summaries
 * **Mismatch Detection Service** owns mismatch generation and mismatch summaries
+* **Evidence Service** owns evidence packaging and evidence summaries
 * **Knowledge Graph Service** owns entity and relationship structure
 * **Retrieval Service** owns hybrid search, graph expansion, reranking, and context pack assembly
 * **Agent Runtime Service** consumes context packs, not raw documents
+
