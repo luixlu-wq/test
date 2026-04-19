@@ -1,0 +1,17 @@
+﻿{
+  "stateMapId": "STATE-MAP-REG-001",
+  "caseId": "CASE-REG-001",
+  "states": [
+    {"id": "STATE-step1", "name": "Registration Step 1"},
+    {"id": "STATE-step2", "name": "Registration Step 2"},
+    {"id": "STATE-step2-valid", "name": "Step 2 Async Validated"},
+    {"id": "STATE-step3", "name": "Registration Step 3"},
+    {"id": "STATE-complete", "name": "Registration Complete"}
+  ],
+  "transitions": [
+    {"id": "TR-1-2", "from": "STATE-step1", "to": "STATE-step2", "trigger": "submit_step1"},
+    {"id": "TR-2-2v", "from": "STATE-step2", "to": "STATE-step2-valid", "trigger": "async_email_validation_passed"},
+    {"id": "TR-2-3", "from": "STATE-step2-valid", "to": "STATE-step3", "trigger": "click_next"},
+    {"id": "TR-3-done", "from": "STATE-step3", "to": "STATE-complete", "trigger": "submit_step3"}
+  ]
+}

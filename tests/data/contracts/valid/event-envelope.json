@@ -1,0 +1,11 @@
+﻿{
+  "event_id": "EVT-001",
+  "event_type": "workflow.stage.completed",
+  "event_version": 1,
+  "project_id": "proj_01",
+  "correlation_id": "REQ-1001",
+  "causation_id": "TASK-4001",
+  "occurred_at": "2026-04-18T14:10:02Z",
+  "producer": "qa-orchestrator",
+  "payload": {"stage": "ingestion", "status": "completed"}
+}

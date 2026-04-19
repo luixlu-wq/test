@@ -1,0 +1,17 @@
+﻿caseId: CASE-REG-001
+caseName: registration-flow
+feature: business_registration
+priority: high
+channels:
+  - web
+  - api
+entryUrls:
+  - https://uat.synthetic.local/register
+criticalFlows:
+  - valid registration
+  - duplicate email validation
+  - business profile completion
+sourceUrls:
+  - https://docs.synthetic.local/story/US-201
+knownDefects:
+  - BUG-220

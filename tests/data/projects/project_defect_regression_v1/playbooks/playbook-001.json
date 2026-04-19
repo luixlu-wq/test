@@ -1,0 +1,15 @@
+﻿{
+  "playbookId": "PLAYBOOK-001",
+  "sourceRunId": "RUN-DR-CAND-001",
+  "mode": "regression",
+  "approved": true,
+  "stateSignals": [
+    "spinner_disappeared",
+    "validation_complete",
+    "dashboard_visible"
+  ],
+  "performanceBaselineMs": {
+    "login_flow": 1800,
+    "forgot_password": 1200
+  }
+}

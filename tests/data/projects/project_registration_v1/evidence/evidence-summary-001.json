@@ -1,0 +1,9 @@
+﻿{
+  "bundleId": "EVB-REG-001",
+  "runId": "RUN-REG-001",
+  "items": [
+    {"id": "EVID-R1", "type": "screenshot", "ref": "blob://reg/step2-disabled.png"},
+    {"id": "EVID-R2", "type": "console_log", "ref": "blob://reg/console.log"},
+    {"id": "EVID-R3", "type": "trace", "ref": "blob://reg/run.trace"}
+  ]
+}

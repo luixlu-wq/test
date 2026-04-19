@@ -1,0 +1,10 @@
+﻿{
+  "healingEventId": "HEAL-001",
+  "scenarioId": "SCN-reg-step2-next-button",
+  "selectorKey": "button.next",
+  "oldLocator": "#nextBtn",
+  "suggestedLocator": "button[data-testid='next-step']",
+  "confidence": 0.78,
+  "approved": false,
+  "reason": "Element id changed but role and text remained consistent."
+}

@@ -1,0 +1,8 @@
+﻿{
+  "runId": "RUN-DR-BASE-001",
+  "caseId": "CASE-LOGIN-001",
+  "mode": "regression",
+  "status": "failed",
+  "summary": {"passed": 4, "failed": 2, "blocked": 0},
+  "failedScenarioIds": ["SCN-login-forgot-password", "SCN-login-lockout"]
+}

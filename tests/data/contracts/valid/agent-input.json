@@ -1,0 +1,30 @@
+﻿{
+  "agentName": "requirement-mapping-agent",
+  "requestId": "REQ-1001",
+  "runId": "RUN-3001",
+  "caseId": "CASE-101",
+  "taskId": "TASK-4001",
+  "policyProfile": "standard-controlled",
+  "executionMode": "diagnostic",
+  "inputs": {},
+  "contextPack": {
+    "contextType": "requirement_mapping",
+    "contextPackId": "CTXPACK-1001",
+    "sourceRefs": [],
+    "facts": {},
+    "chunks": [],
+    "entities": [],
+    "stateRefs": [],
+    "mismatchRefs": [],
+    "reusableAssets": [],
+    "playbooks": [],
+    "history": [],
+    "gaps": [],
+    "conflicts": []
+  },
+  "constraints": {
+    "approvedAssetsOnly": true,
+    "approvedPlaybooksOnly": true,
+    "maxContextScope": "bounded"
+  }
+}

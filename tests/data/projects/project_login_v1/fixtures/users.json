@@ -1,0 +1,4 @@
+﻿[
+  {"userId": "USR-001", "email": "valid.user@synthetic.local", "password": "ValidPass#123", "locked": false},
+  {"userId": "USR-002", "email": "locked.user@synthetic.local", "password": "ValidPass#123", "locked": true}
+]

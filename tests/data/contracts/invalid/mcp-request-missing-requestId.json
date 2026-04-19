@@ -1,0 +1,10 @@
+﻿{
+  "runId": "RUN-3001",
+  "caseId": "CASE-101",
+  "agentId": "strategy-agent",
+  "toolCallId": "TOOL-9001",
+  "timestamp": "2026-04-18T14:10:00Z",
+  "policyProfile": "standard-controlled",
+  "executionMode": "diagnostic",
+  "payload": {}
+}

@@ -1,0 +1,16 @@
+﻿{
+  "defectDraftId": "DEF-DRAFT-001",
+  "title": "Forgot password returns 500",
+  "linkedRequirementId": "US-101",
+  "environment": "UAT",
+  "reproSteps": [
+    "Open login page",
+    "Click forgot password",
+    "Submit known email",
+    "Observe error"
+  ],
+  "expected": "Reset flow accepted",
+  "actual": "HTTP 500 returned",
+  "confidence": 0.84,
+  "status": "review_required"
+}

@@ -1,0 +1,23 @@
+﻿openapi: 3.0.3
+info:
+  title: Registration API
+  version: 1.0.0
+paths:
+  /registration/start:
+    post:
+      operationId: startRegistration
+      responses:
+        "201":
+          description: Registration started
+  /registration/validate-email:
+    post:
+      operationId: validateEmail
+      responses:
+        "200":
+          description: Validation result
+  /registration/complete:
+    post:
+      operationId: completeRegistration
+      responses:
+        "200":
+          description: Registration completed

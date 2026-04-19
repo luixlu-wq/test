@@ -1,0 +1,11 @@
+﻿{
+  "contextPackId": "CTXPACK-001",
+  "contextType": "triage",
+  "executionMode": "diagnostic",
+  "sourceRefs": ["US-101", "BUG-120", "RUN-DR-BASE-001"],
+  "chunks": ["CH-001", "CH-002"],
+  "entities": ["REQ-LOGIN", "API-FORGOT-PASSWORD"],
+  "mismatchRefs": [],
+  "reusableAssets": ["PLAYBOOK-001"],
+  "gaps": []
+}

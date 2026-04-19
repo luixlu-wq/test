@@ -1,0 +1,7 @@
+﻿documents:
+  - type: story_page
+    url: https://docs.synthetic.local/story/US-101
+    authProfile: synthetic-session
+  - type: defect_page
+    url: https://tracker.synthetic.local/bug/BUG-120
+    authProfile: synthetic-session

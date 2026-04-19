@@ -1,0 +1,12 @@
+﻿{
+  "runId": "RUN-REG-001",
+  "caseId": "CASE-REG-001",
+  "status": "partial",
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "blocked": 1
+  },
+  "failedScenarioIds": ["SCN-reg-step2-next-button"],
+  "timestamp": "2026-04-03T12:00:00Z"
+}

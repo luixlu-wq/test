@@ -1,0 +1,15 @@
+﻿{
+  "stateMapId": "STATE-MAP-LOGIN-001",
+  "caseId": "CASE-LOGIN-001",
+  "states": [
+    {"id": "STATE-login-form", "name": "Login Form Visible"},
+    {"id": "STATE-auth-success", "name": "Authenticated Dashboard"},
+    {"id": "STATE-auth-error", "name": "Invalid Credential Error"},
+    {"id": "STATE-locked", "name": "Account Locked"}
+  ],
+  "transitions": [
+    {"id": "TR-login-success", "from": "STATE-login-form", "to": "STATE-auth-success", "trigger": "submit_valid_credentials"},
+    {"id": "TR-login-failed", "from": "STATE-login-form", "to": "STATE-auth-error", "trigger": "submit_invalid_credentials"},
+    {"id": "TR-lockout", "from": "STATE-auth-error", "to": "STATE-locked", "trigger": "five_consecutive_failures"}
+  ]
+}

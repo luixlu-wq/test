@@ -1,0 +1,10 @@
+﻿{
+  "triageId": "TRIAGE-001",
+  "runId": "RUN-DR-BASE-001",
+  "scenarioId": "SCN-login-forgot-password",
+  "decision": "draft_defect",
+  "class": "product_defect",
+  "confidence": 0.84,
+  "reason": "Path failed twice with clean state; API returned 500.",
+  "evidenceRefs": ["EVID-DF-001", "EVID-DF-002"]
+}

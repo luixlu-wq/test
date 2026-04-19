@@ -1,0 +1,9 @@
+﻿{
+  "bundleId": "EVB-LOGIN-001",
+  "runId": "RUN-LOGIN-001",
+  "items": [
+    {"id": "EVID-001", "type": "screenshot", "ref": "blob://login/forgot-password-404.png"},
+    {"id": "EVID-002", "type": "trace", "ref": "blob://login/run.trace"},
+    {"id": "EVID-003", "type": "api_response", "ref": "blob://login/forgot-password-response.json"}
+  ]
+}

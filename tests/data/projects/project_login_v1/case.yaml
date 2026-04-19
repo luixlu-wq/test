@@ -1,0 +1,17 @@
+﻿caseId: CASE-LOGIN-001
+caseName: login-flow
+feature: authentication
+priority: high
+channels:
+  - web
+  - api
+entryUrls:
+  - https://uat.synthetic.local/login
+criticalFlows:
+  - valid login
+  - invalid password
+  - forgot password
+sourceUrls:
+  - https://docs.synthetic.local/story/US-101
+knownDefects:
+  - BUG-120

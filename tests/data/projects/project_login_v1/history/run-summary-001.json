@@ -1,0 +1,12 @@
+﻿{
+  "runId": "RUN-LOGIN-001",
+  "caseId": "CASE-LOGIN-001",
+  "status": "failed",
+  "summary": {
+    "passed": 2,
+    "failed": 1,
+    "blocked": 0
+  },
+  "failedScenarioIds": ["SCN-login-forgot-password"],
+  "timestamp": "2026-04-01T10:00:00Z"
+}

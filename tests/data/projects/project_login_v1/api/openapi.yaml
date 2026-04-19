@@ -1,0 +1,23 @@
+﻿openapi: 3.0.3
+info:
+  title: Auth API
+  version: 1.0.0
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      requestBody:
+        required: true
+      responses:
+        "200":
+          description: Login success
+        "401":
+          description: Invalid credentials
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      requestBody:
+        required: true
+      responses:
+        "202":
+          description: Reset initiated

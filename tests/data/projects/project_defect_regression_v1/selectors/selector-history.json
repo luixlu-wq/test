@@ -1,0 +1,7 @@
+﻿{
+  "profileId": "SEL-PROFILE-001",
+  "history": [
+    {"version": 1, "key": "button.next", "locator": "#nextBtn", "approved": true},
+    {"version": 2, "key": "button.next", "locator": "button[data-testid='next-step']", "approved": false}
+  ]
+}

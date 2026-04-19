@@ -1,0 +1,4 @@
+﻿[
+  {"userId": "USR-R001", "email": "new.business@synthetic.local", "company": "Northwind Labs", "taxId": "123456789"},
+  {"userId": "USR-R002", "email": "existing.business@synthetic.local", "company": "Existing Co", "taxId": "987654321"}
+]

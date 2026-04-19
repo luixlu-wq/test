@@ -1,0 +1,7 @@
+﻿{
+  "agentName": "requirement-mapping-agent",
+  "requestId": "REQ-1001",
+  "runId": "RUN-3001",
+  "executionMode": "diagnostic",
+  "inputs": {}
+}

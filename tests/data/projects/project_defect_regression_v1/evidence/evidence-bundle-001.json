@@ -1,0 +1,9 @@
+﻿{
+  "bundleId": "EVB-DF-001",
+  "runId": "RUN-DR-BASE-001",
+  "bundleType": "triage",
+  "items": [
+    {"id": "EVID-DF-001", "type": "screenshot", "ref": "blob://df/login-error.png", "hash": "sha256:111111"},
+    {"id": "EVID-DF-002", "type": "api_response", "ref": "blob://df/login-500.json", "hash": "sha256:222222"}
+  ]
+}
