@@ -304,6 +304,14 @@ Join table between request and cases.
 | source      | string | `request`, `derived`, `trigger_inferred` |
 | status      | string | per-case request status                  |
 
+### Source field values
+
+| Value              | Meaning                                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `request`          | The case was explicitly named in the inbound request payload. The caller directly identified which case to run.                                   |
+| `derived`          | The case was not in the request payload but was inferred by the Intake Agent from the request content — e.g. the request described a login flow and the agent resolved it to `CASE-login-flow`. This happens when the request is descriptive rather than case-keyed. |
+| `trigger_inferred` | The case was not submitted by a human at all. The Trigger Service inferred it from a local change event — e.g. a pre-commit hook modified files under the `auth/` folder, so the trigger resolved the affected cases automatically.               |
+
 ---
 
 ## 6.3 `qa_request_source_url`
@@ -998,6 +1006,14 @@ Represents a run of one or more test assets.
 | run_type               | string             | `web`, `api`, `hybrid`                                                      |
 | mode                   | string             | `draft`, `regression`, `diagnostic`                                         |
 | status                 | string             | `pending`, `running`, `passed`, `failed`, `partial`, `blocked`, `cancelled` |
+
+### Mode field values
+
+| Value         | Meaning                                                                                                                                                                                                                          |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `diagnostic`  | The agent explores the application autonomously. No deterministic playbook is required. The agent uses state-driven waits and collects evidence while discovering UI behavior. Results feed the Playbook Service for hardening.    |
+| `regression`  | A previously-hardened deterministic playbook drives execution. Steps are scripted, selectors are fingerprint-stabilized, waits are signal-driven. The run validates known expected outcomes against a stable test asset.          |
+| `draft`       | A partially-configured run that has not yet been dispatched. Used when a run record is created ahead of full asset resolution — for example, when a workflow stage is preparing assets before the Execution Service is triggered. A `draft` run must not be picked up by the Execution Service until its status transitions to `pending`. |
 | started_at             | timestamp          |                                                                             |
 | ended_at               | timestamp nullable |                                                                             |
 | execution_context_json | json nullable      | browser, auth profile, etc.                                                 |
@@ -1935,6 +1951,33 @@ This matters because:
 * behavior differs across environments
 * diagnostic mode and regression mode must remain distinguishable operationally
 
+## 32.1 `environment_profile`
+
+The `environment` field on `qa_request`, `trigger_event`, and `execution_run` is a string key that references a registered environment profile. The profile defines how the platform reaches and authenticates against that environment.
+
+Without a profile table, `environment = "UAT"` is an opaque label. With it, the Execution Service can resolve the base URL, credential profile, and feature-flag set automatically rather than requiring each caller to repeat this configuration.
+
+| Field               | Type               | Notes                                                                                     |
+| ------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
+| id                  | string             | e.g. `LOCAL`, `UAT`, `IST`, `PROD`                                                        |
+| display_name        | string             |                                                                                           |
+| base_url            | text               | root URL for browser-based execution in this environment                                  |
+| api_base_url        | text nullable      | root URL for API-only runs if different from base_url                                     |
+| auth_profile        | string nullable    | key referencing a credential set in secure config; not stored here                        |
+| feature_flags_json  | json nullable      | environment-specific flags injected into execution context                                |
+| allowed_modes       | json               | array of run modes permitted in this environment, e.g. `["diagnostic","regression"]`      |
+| allowed_policies    | json nullable      | optional: restrict which policy profiles are valid for this environment                   |
+| is_active           | boolean            |                                                                                           |
+| notes               | text nullable      |                                                                                           |
+| created_at          | timestamp          |                                                                                           |
+| updated_at          | timestamp          |                                                                                           |
+
+### Constraints
+
+* `PROD` environment must never allow `mode = diagnostic` — the `allowed_modes` column enforces this at the data layer.
+* `LOCAL` environment must always be present with `allowed_modes = ["diagnostic", "regression", "draft"]`.
+* Credentials are **not** stored in this table. The `auth_profile` key is resolved at runtime from a secrets manager or encrypted config store.
+
 ---
 
 # 33. Recommended JSON fields vs normalized tables
@@ -2011,9 +2054,158 @@ The rule remains:
 
 The metadata rows can stay even if heavy blobs move to cold storage.
 
+## Soft delete vs hard delete policy
+
+The platform uses a **mixed deletion policy** based on record class.
+
+### Never hard-delete — use logical status only
+
+These records are part of the audit trail and must never be physically removed:
+
+* `qa_request`
+* `trigger_event`
+* `workflow_instance`
+* `workflow_stage_execution`
+* `agent_task_execution`
+* `execution_run`
+* `execution_run_step`
+* `evidence` (row; blob may be tiered)
+* `audit_log`
+* `policy_decision_log`
+* `tool_invocation_log`
+* `review_decision`
+* `triage_result`
+* `defect_draft`
+* `approval_task`
+
+Mark these as inactive or cancelled via their `status` column. Do not add a `deleted_at` column — status is the deletion signal for these tables.
+
+### Soft delete permitted — add `deleted_at`
+
+These records are operational but can be logically removed when they are no longer needed without breaking traceability:
+
+* `qa_case` — retire via `status = 'inactive'`; do not hard-delete while linked runs exist
+* `test_asset` / `test_asset_version` — retire via `status = 'retired'` or `'deprecated'`
+* `test_scenario` — retire via `status`
+* `deterministic_playbook` — retire via `status = 'retired'`
+* `semantic_state_map` — supersede via `status = 'superseded'`; previous versions retained for healing comparison
+* `element_fingerprint` — never delete; deprecate versions via `element_fingerprint_version.status`
+* `mismatch_warning` — close via `status = 'resolved'` or `'ignored'`
+* `healing_event` — status-driven lifecycle; no physical delete
+* `retrieval_view` — can be regenerated; soft-delete with a `deleted_at` if stale views need purging
+* `artifact_chunk` — can be reindexed; soft-delete with `deleted_at` when artifact is superseded
+
+### Hard delete permitted
+
+These records hold no compliance or forensic value after their parent is purged:
+
+* Large binary blobs in object storage — apply retention TTL policies at the storage tier
+* `context_pack_item` — when parent `context_pack_log` is expired and the audit retention window passes
+* `retrieval_result_log` rows older than the retention window if storage cost is prohibitive — retain the `retrieval_query_log` row as a record that retrieval happened
+
+### Cascade rules
+
+* If a `qa_case` is retired, its `test_asset`, `semantic_state_map`, and `element_fingerprint` rows are retired in cascade, not deleted.
+* If a `qa_request` is cancelled, its `workflow_instance` is cancelled, not deleted.
+* Child rows are never orphaned. Any cascade must update child `status`, not delete child rows.
+
 ---
 
-# 35. Final data model summary
+# 35. Database indexing strategy
+
+The following indexes are required for the platform's hot query paths. This section specifies the minimum index set needed for Sprint 1 migrations and must be expanded as services are built.
+
+## 35.1 Single-column primary indexes
+
+Every table uses a string primary key. The database must create a unique index on the `id` column for each table. This is implicit in SQL PK declaration.
+
+## 35.2 Foreign key indexes
+
+All foreign key columns must have a supporting index to avoid sequential scans on joins. Minimum FK indexes:
+
+| Table                        | Column(s) to index                                   |
+| ---------------------------- | ---------------------------------------------------- |
+| `qa_request`                 | `trigger_event_id`                                   |
+| `qa_request_case`            | `request_id`, `case_id`                              |
+| `qa_request_source_url`      | `request_id`                                         |
+| `artifact`                   | `case_id`, `request_id`                              |
+| `artifact_chunk`             | `artifact_id`                                        |
+| `artifact_parse_result`      | `artifact_id`                                        |
+| `case_understanding`         | `case_id`, `request_id`                              |
+| `semantic_state_map`         | `case_id`, `request_id`                              |
+| `semantic_state`             | `state_map_id`                                       |
+| `state_transition`           | `state_map_id`                                       |
+| `element_fingerprint`        | `state_map_id`                                       |
+| `element_fingerprint_version`| `fingerprint_id`                                     |
+| `mismatch_warning`           | `case_id`, `state_map_id`                            |
+| `workflow_instance`          | `request_id`                                         |
+| `workflow_stage_execution`   | `workflow_id`                                        |
+| `agent_task_execution`       | `workflow_id`, `request_id`, `case_id`               |
+| `retrieval_query_log`        | `agent_task_id`, `request_id`, `case_id`             |
+| `retrieval_result_log`       | `retrieval_query_id`                                 |
+| `context_pack_log`           | `agent_task_id`, `case_id`                           |
+| `context_pack_item`          | `context_pack_id`                                    |
+| `test_strategy`              | `case_id`, `request_id`                              |
+| `test_scenario`              | `case_id`, `strategy_id`                             |
+| `test_asset`                 | `case_id`, `scenario_id`                             |
+| `test_asset_version`         | `test_asset_id`                                      |
+| `deterministic_playbook`     | `case_id`, `source_run_id`                           |
+| `execution_run`              | `request_id`, `case_id`, `trigger_event_id`          |
+| `execution_run_asset`        | `run_id`, `test_asset_id`                            |
+| `execution_run_step`         | `run_id`, `test_asset_id`                            |
+| `evidence`                   | `run_id`, `run_step_id`                              |
+| `evidence_summary`           | `evidence_id`, `run_id`                              |
+| `evidence_bundle_item`       | `bundle_id`, `evidence_id`                           |
+| `healing_event`              | `run_id`, `case_id`, `fingerprint_id`                |
+| `triage_result`              | `run_id`                                             |
+| `triage_supporting_evidence` | `triage_result_id`, `evidence_id`                    |
+| `triage_history_link`        | `triage_result_id`                                   |
+| `defect_draft`               | `run_id`, `triage_result_id`, `case_id`              |
+| `defect_draft_evidence`      | `defect_draft_id`, `evidence_id`                     |
+| `defect_similarity_link`     | `defect_draft_id`, `known_defect_id`                 |
+| `approval_task`              | `request_id`, `target_id`                            |
+| `review_decision`            | `approval_task_id`                                   |
+| `learning_signal`            | `case_id`, `run_id`, `test_asset_id`                 |
+| `learning_signal_link`       | `learning_signal_id`, `target_id`                    |
+| `audit_log`                  | `request_id`, `workflow_id`, `run_id`, `actor_id`    |
+| `tool_invocation_log`        | `agent_task_id`, `run_id`, `request_id`              |
+
+## 35.3 Composite indexes for hot query paths
+
+| Table                  | Index columns                          | Query pattern                                                     |
+| ---------------------- | -------------------------------------- | ----------------------------------------------------------------- |
+| `qa_request`           | `(status, submitted_at)`               | list open requests sorted by recency                              |
+| `qa_request`           | `(submitted_by, submitted_at)`         | user-scoped request history                                       |
+| `execution_run`        | `(case_id, mode, status)`              | filter runs by case + execution mode                              |
+| `execution_run`        | `(environment, status, started_at)`    | environment-scoped run reporting                                  |
+| `execution_run_step`   | `(run_id, status)`                     | fetch failed steps for a run                                      |
+| `evidence`             | `(run_id, evidence_type)`              | fetch screenshot or HAR evidence for a run                        |
+| `agent_task_execution` | `(agent_name, status, started_at)`     | agent-level observability dashboards                              |
+| `mismatch_warning`     | `(case_id, severity, status)`          | surface open blocking mismatches before execution gate            |
+| `element_fingerprint_version` | `(fingerprint_id, status, version_no)` | resolve active fingerprint version for healing              |
+| `approval_task`        | `(status, task_type, assigned_to)`     | reviewer inbox query                                              |
+| `audit_log`            | `(service_name, actor_type, occurred_at)` | service-level audit queries                                    |
+| `retrieval_query_log`  | `(mode, case_id, created_at)`          | retrieval pattern analysis per agent mode                         |
+| `artifact_chunk`       | `(artifact_id, retrieval_indexed)`     | find un-indexed chunks for batch indexing jobs                    |
+
+## 35.4 Partial index recommendations
+
+Where supported by the database engine (PostgreSQL supports these natively):
+
+* `WHERE status = 'pending'` on `approval_task` — speeds up reviewer inbox loading
+* `WHERE status = 'open'` on `mismatch_warning` — speeds up pre-execution mismatch gate
+* `WHERE retrieval_indexed = false` on `artifact_chunk` and `retrieval_view` — speeds up indexing worker queue queries
+* `WHERE mode = 'draft'` on `execution_run` — speeds up the check that finds draft runs awaiting dispatch
+
+## 35.5 Index governance rules
+
+* All new tables added in migrations must include FK indexes at migration time, not deferred.
+* No index may be added to an `audit_log` column beyond those listed here without a write-performance review — audit tables are high-insert.
+* JSON column content is not indexed by default. If a JSON path is queried frequently enough to need an index, extract it to a native column.
+
+---
+
+# 36. Final data model summary
 
 Your final-architecture-aligned operational data model should center on these core record types:
 

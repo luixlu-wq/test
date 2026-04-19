@@ -623,11 +623,29 @@ Detect requirement mismatches across fused artifacts and semantic state maps bef
 * `mismatch.blocking_detected`
 * `mismatch.completed`
 
+### Trigger mechanism
+
+The Mismatch Detection Service is triggered by the **QA Orchestration Service** immediately after the Semantic State Service emits `state_map.completed`. It runs as a mandatory pre-authoring gate and is not triggered directly by upstream services.
+
+Trigger flow:
+
+1. Semantic State Service emits `state_map.completed`
+2. Orchestrator dispatches `mismatch.detection.requested`
+3. Mismatch Detection Service runs full analysis across all fused artifacts and the new state map
+4. Service emits either `mismatch.completed` (no blockers) or `mismatch.blocking_detected` (blockers found)
+5. If blocking mismatches exist, the Orchestration Service halts the workflow at the authoring gate
+6. An approval task is created and routed to a reviewer
+7. The reviewer resolves or explicitly overrides the blocking mismatch
+8. The Orchestration Service resumes the workflow
+
+Non-blocking mismatches do not halt the workflow. They are included in the context pack delivered to all downstream agents and must be acknowledged in agent reasoning output.
+
 ### Non-functional notes
 
 * deterministic and explainable
 * all mismatches must include source refs
-* should run before authoring and before execution
+* must complete before authoring stage begins; this is enforced by the Orchestration Service, not by this service itself
+* blocking severity is determined by the Mismatch Detection Service; the enforcement gate is owned by the Orchestration Service
 
 This is one of the most important reliability services in the whole system.
 
@@ -1037,21 +1055,60 @@ this service should export them into a deterministic playbook so regression mode
 
 ### Purpose
 
-Provide deterministic environment and data preparation.
+Provide deterministic environment and data preparation, including parallel run isolation when multiple runs execute concurrently against the same environment.
 
 ### Responsibilities
 
-* verify preconditions
-* setup test data
-* reset supported resources
-* cleanup temporary data
-* record state actions for audit
+* verify preconditions before execution begins
+* create scoped test accounts and data sets for each run
+* seed required data states declared by the test scenario
+* reset resources to a known clean state
+* clean up run-scoped data after completion (pass or fail)
+* enforce isolation boundaries between concurrent runs
+* record all state actions in the audit log with run ID, environment, and actor identity
+
+### Parallel run isolation
+
+When multiple runs execute against the same environment simultaneously, data collisions and session bleed-through must be prevented.
+
+Isolation strategies, applied in priority order:
+
+1. **Tenant or namespace isolation** — each run receives a unique namespace prefix or scoped test tenant where the environment supports it (preferred)
+2. **Account-per-run isolation** — each run creates a dedicated scoped test account (e.g. `testuser-RUN-3001@test.example.com`)
+3. **Sequential execution gate** — if the environment cannot support parallel data isolation, a concurrency limit of 1 is enforced for that environment profile; subsequent runs queue until the prior run releases
+
+The isolation strategy for each environment is declared in the environment profile configuration and enforced by this service before execution begins. The Execution Service may not dispatch a run until this service confirms isolation is established.
+
+### Action catalog
+
+State management actions must be defined in a declarative action catalog, not as ad-hoc scripts.
+
+Each action in the catalog declares:
+
+* `name` — stable identifier
+* `preconditions` — what must be true before the action runs
+* `inputs` — parameters the orchestrator provides per run
+* `side_effects` — what the action changes in the environment
+* `cleanup_action` — the paired teardown action reference
+* `policy_tier` — Tier 1 for standard setup, Tier 2 for sensitive or destructive mutations
+
+### Data lifecycle contract
+
+Each run that uses State Management must follow this four-phase contract:
+
+1. **Setup** — called before execution; creates isolated data and verifies preconditions
+2. **Verification** — confirms setup succeeded and the environment is in the expected state; blocks execution if verification fails
+3. **Cleanup** — called after execution completes regardless of pass or fail; removes run-scoped data and releases any locks or reservations
+4. **Audit** — records all actions taken with timestamps, run ID, environment ID, and actor identity
+
+Cleanup must execute even if the run fails or is cancelled partway through. Cleanup failures are flagged as warnings attached to the run record.
 
 ### Non-functional notes
 
-* heavily policy-controlled
-* action catalog should be declarative where possible
-* state mutations should remain minimal and explicit
+* all Tier 2 state mutations require an explicit approval gate before execution
+* the service must not assume that environment state is clean between runs
+* the service must support idempotent setup — re-running setup for the same run ID must produce the same state without duplication
+* concurrency limits and isolation assignments must be persisted so they survive orchestrator restarts
 
 ---
 
@@ -1278,6 +1335,113 @@ Trigger / Request Gateway
     -> completion summary
 ```
 
+## 7.3 Inter-service communication protocol
+
+The platform uses a **two-protocol model**: synchronous HTTP for request-response interactions, and an event bus for asynchronous workflow advancement.
+
+### HTTP (synchronous)
+
+Use synchronous HTTP for:
+
+* inbound request submission to Request Gateway
+* trigger submission to Trigger Service
+* metadata and status lookups
+* approval decision submission
+* MCP tool calls from agents to service adapters
+* direct service-to-service queries within a workflow stage (e.g. Retrieval Service calling Knowledge Graph Service for expansion)
+
+All HTTP APIs use JSON request and response bodies.
+Services expose REST-style endpoints.
+Internal service-to-service calls use scoped service tokens, not user credentials.
+
+### Event bus (asynchronous)
+
+Use the event bus for:
+
+* workflow stage advancement (Orchestration Service → downstream services)
+* stage completion signals (services → Orchestration Service)
+* worker dispatch (Execution Service → Browser Worker / API Runner Worker pools)
+* evidence finalization signals
+* healing analysis triggers
+* triage triggers
+* playbook export triggers
+* learning signal triggers
+
+The committed event bus technology is **Redis Streams** (primary) or RabbitMQ (alternative), as defined in the architecture.
+
+All events use a standard envelope:
+
+```json
+{
+  "eventType": "string",
+  "requestId": "string",
+  "workflowId": "string",
+  "runId": "string or null",
+  "caseId": "string or null",
+  "payload": {},
+  "issuedAt": "ISO-8601 timestamp",
+  "issuedBy": "service-name"
+}
+```
+
+### No direct cross-service database access
+
+Services must not read or write each other's relational database tables directly.
+
+Cross-service data access must go through:
+
+* the owning service's HTTP API, or
+* shared read models published to the retrieval index or object storage
+
+This boundary is what makes services independently deployable and replaceable without requiring schema coordination across teams.
+
+## 7.4 Cross-store consistency and transaction boundaries
+
+The platform writes to multiple stores (relational DB, graph store, vector index, object storage). These stores cannot participate in a single distributed transaction. The design uses the **Transactional Outbox pattern** to maintain consistency across them.
+
+### Transactional Outbox pattern
+
+When a service needs to write to both the relational DB and a secondary store (graph, vector index, or object storage):
+
+1. The service writes the primary record and an outbox entry in the **same local relational transaction**
+2. A background outbox processor reads pending outbox entries and writes to the secondary store
+3. On success, the outbox entry is marked complete
+4. On failure, the outbox processor retries with backoff
+5. The relational record is always the source of truth; graph and vector stores are eventually consistent derivatives
+
+This means:
+
+* a graph write failure never causes a relational write to be rolled back or lost
+* a vector index failure never blocks a workflow stage from completing
+* the outbox table provides a durable, inspectable retry queue for all cross-store writes
+
+### Saga pattern for multi-stage workflows
+
+Long-running workflows that span multiple services use a **choreography-based saga**.
+
+Each workflow stage defines:
+
+* the event that triggers it
+* the event it emits on success
+* the event it emits on failure
+* a compensating action that reverses its side-effects if the saga needs to abort
+
+The QA Orchestration Service tracks saga state and can issue compensation requests if a downstream stage fails unrecoverably. Compensating actions must be idempotent.
+
+### Consistency guarantees by store
+
+| Store | Consistency model | Mechanism |
+| --- | --- | --- |
+| Relational DB | Strongly consistent within a service | ACID transactions |
+| Graph store | Eventually consistent | Transactional Outbox |
+| Vector index | Eventually consistent | Transactional Outbox |
+| Object storage | Eventually consistent | Idempotent object writes |
+| Event bus | At-least-once delivery | Consumer group acknowledgement |
+
+### No distributed transactions (XA)
+
+The platform does not use XA or two-phase commit across services or stores. This is a deliberate choice to keep operational complexity low and services independently deployable.
+
 ---
 
 # 8. Service boundaries and why they matter
@@ -1437,6 +1601,36 @@ Add:
 * Audit & Observability
 
 This remains the recommended target.
+
+## Minimum Viable Demo Slice
+
+Before committing to the full production-minded MVP, the team should target a **7-service first demo slice** that demonstrates the core value proposition end-to-end.
+
+The minimum slice is:
+
+1. **Request Gateway** — accepts a request with a case name
+2. **QA Orchestration** — drives a simplified workflow through ingestion → context → generation
+3. **Distributed Understanding Service** — ingests a case folder and produces fused case understanding with chunks
+4. **Retrieval Service** — provides bounded context to the agent using a local in-process vector store (no Qdrant required at this stage)
+5. **Agent Runtime** — runs one agent (Test Authoring Agent) against the bounded context
+6. **Test Asset Service** — stores and versions the generated test
+7. **Evidence Service** (schema only) — records run metadata; no full browser/trace evidence capture yet
+
+This slice demonstrates:
+
+* folder ingestion → artifact fusion → chunk retrieval → agent reasoning → test asset generation
+
+What is deliberately omitted from the demo slice:
+
+* Semantic State Service (no state map generation yet)
+* Mismatch Detection Service (no pre-execution gate yet)
+* Knowledge Graph Service (no graph store required)
+* Browser Worker / API Runner Worker (no live execution yet)
+* Healing, Triage, Playbook, Defect Draft services
+* Policy & Approval Service (policy is pass-through in demo mode)
+* Audit & Observability Service (basic logging only)
+
+The demo slice produces a real, inspectable test file from a real case folder. That is the first meaningful deliverable for any stakeholder review.
 
 ---
 

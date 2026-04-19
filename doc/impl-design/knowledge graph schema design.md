@@ -891,9 +891,13 @@ Optional node for stable learned patterns.
 (ArtifactChunk)-[:GROUNDS_PAGE]->(Page)
 (ArtifactChunk)-[:GROUNDS_API]->(ApiEndpoint)
 (ArtifactChunk)-[:GROUNDS_STATE]->(UIState)
-(ArtifactChunk)-[:GROUNDS_MISMATCH]->(MismatchWarning)
 (ArtifactChunk)-[:GROUNDS_KNOWN_DEFECT]->(KnownDefect)
+(MismatchWarning)-[:DETECTED_FROM_CHUNK]->(ArtifactChunk)
 ```
+
+### Direction note: `DETECTED_FROM_CHUNK`
+
+A mismatch is not grounded in a single chunk the way a requirement or state is — it is detected by comparing two or more conflicting chunks. The relationship therefore points from the warning back to each contributing chunk, consistent with the artifact-level `(MismatchWarning)-[:DETECTED_FROM]->(Artifact)` in section 7.6. A single `MismatchWarning` may have two `DETECTED_FROM_CHUNK` edges: one to the chunk that stated the expectation and one to the chunk that contradicted it.
 
 These are crucial for Graph-RAG expansion.
 
@@ -1577,9 +1581,19 @@ RETURN p;
 
 ---
 
-# 16. Recommended storage architecture
+# 16. Storage architecture
 
-A **Neo4j + search/vector index hybrid** remains a strong fit.
+The platform commits to **Neo4j** as the graph store and a **Qdrant or pgvector** vector index as the retrieval/search layer. These are not recommendations — they are the committed technology choices recorded in the architectural design (Section 29 — Platform Technology Profile).
+
+Neo4j is selected because:
+
+* it natively supports labeled property graphs with typed relationships
+* Cypher is expressive for path reasoning, coverage queries, and impact analysis
+* it supports uniqueness constraints and indexes on node properties
+* it supports multi-node transactions needed for atomic graph writes
+* it supports MERGE semantics for idempotent writes
+
+The graph and vector layers are loosely coupled through shared IDs. Neither layer stores the other's primary data.
 
 ## Graph store
 
@@ -1712,6 +1726,96 @@ Creates:
 * `ApprovalTask`
 * `ReviewDecision`
 * `LearningSignal`
+
+---
+
+## 17.1 Graph write atomicity and transaction boundaries
+
+Every graph write from a service must be **atomic at the Neo4j transaction level**. A partial graph write — where some nodes are created and a subsequent relationship write fails — leaves the graph in an inconsistent state that is difficult to detect and repair.
+
+### Transaction scope per service write
+
+Each service graph write must be issued as a **single Neo4j transaction** covering all nodes and relationships that logically belong together:
+
+| Service write          | Transaction scope                                                               |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| Distributed Understanding writes `Artifact` + chunks + `Requirement` nodes | One transaction per artifact ingestion |
+| Semantic State Service writes `SemanticStateMap` + `UIState` + `Transition` + `ElementFingerprint` + `FingerprintVersion` | One transaction per state map |
+| Mismatch Detection writes `MismatchWarning` + `DETECTED_FROM` relationships | One transaction per mismatch event |
+| Test Authoring writes `TestScenario` + `TestAsset` + `Assertion` + relationships | One transaction per asset generation |
+| Execution Service writes `Run` + `RunStep` + `Evidence` relationships | One transaction per run record |
+| Healing Service writes `HealingEvent` + fingerprint evolution links | One transaction per healing event |
+| Playbook Service writes `DeterministicPlaybook` + `StateSignal` + playbook relationships | One transaction per playbook |
+
+### Failure handling
+
+If a Neo4j transaction rolls back due to a constraint violation or transient error:
+
+* the service must **not** mark the workflow stage as complete in the relational store
+* the service must emit a failure event or surface the error so the orchestrator can retry the stage
+* the graph should be treated as unmodified — no partial cleanup is needed because the transaction rolled back
+* if the error is a uniqueness constraint conflict on a node that already exists from a prior attempt, treat it as a re-ingestion case (see section 17.2)
+
+### No cross-service graph transactions
+
+Services must not participate in distributed transactions that span multiple services' graph writes. If Service A writes to Neo4j and Service B must write a relationship linking A's nodes to B's nodes, Service B must read A's nodes by ID and write its own relationships in a separate transaction. Partial failures in this case are handled by retry at the service level, not by distributed rollback.
+
+---
+
+## 17.2 Re-ingestion idempotency
+
+A service may be retried after a partial failure, a workflow replay, or an intentional re-processing request. The graph must tolerate re-running the same write without creating duplicate nodes or inconsistent state.
+
+### MERGE vs CREATE
+
+All node writes to Neo4j must use `MERGE` on the node's stable business ID, not `CREATE`. A `MERGE` finds the existing node if present or creates it if absent — this is the correct primitive for idempotent node writes.
+
+```cypher
+// Correct — idempotent
+MERGE (r:Requirement {requirementId: "REQ-501"})
+ON CREATE SET r.text = $text, r.status = "active", r.createdAt = $now
+ON MATCH SET r.updatedAt = $now
+
+// Wrong — creates duplicate on retry
+CREATE (r:Requirement {requirementId: "REQ-501", text: $text})
+```
+
+### Relationship idempotency
+
+Relationships must also use `MERGE` to prevent duplicate edges between the same node pairs:
+
+```cypher
+MATCH (chunk:ArtifactChunk {chunkId: "CHUNK-9001"})
+MATCH (req:Requirement {requirementId: "REQ-501"})
+MERGE (chunk)-[:GROUNDS_REQUIREMENT]->(req)
+```
+
+For relationships that carry properties (e.g. `SUPPORTS_DEFECT` with confidence), `MERGE` on the relationship type and direction, then `SET` the properties on match:
+
+```cypher
+MATCH (e:Evidence {evidenceId: "EV-1001"})
+MATCH (d:DefectDraft {defectDraftId: "DD-9001"})
+MERGE (e)-[rel:SUPPORTS_DEFECT]->(d)
+SET rel.confidence = $confidence, rel.confidenceReason = $reason, rel.updatedAt = $now
+```
+
+### Versioned nodes on re-ingestion
+
+When a service re-ingests content that was previously processed (e.g. an artifact is re-parsed after the source file changed), it must:
+
+1. `MERGE` the parent node (e.g. `Artifact`) by its stable ID — this finds the existing node
+2. Increment the `version` property and set `updatedAt`
+3. For version-sensitive child nodes (e.g. `FingerprintVersion`, `ArtifactChunk`), check whether the content has changed using a checksum comparison before deciding to create a new version node
+4. If a new version is warranted, create the new version node and add a `SUPERSEDED_BY` relationship from the old version to the new one
+5. Do not delete the old version node — preserve history
+
+### Stale relationship cleanup
+
+When a service regenerates a set of relationships (e.g. the Semantic State Service rebuilds a `SemanticStateMap` and its `HAS_STATE` edges), it must:
+
+1. `MERGE` the `SemanticStateMap` node
+2. For each new `UIState`, `MERGE` the state node and `MERGE` the `HAS_STATE` relationship
+3. For states that no longer appear in the new map, set their `status` to `deprecated` — do not delete them, because runs and healing events may still reference them
 
 ---
 

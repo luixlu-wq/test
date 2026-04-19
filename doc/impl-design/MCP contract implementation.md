@@ -176,6 +176,20 @@ Every tool request should support:
 * `permissionsScope`
 * `readOnly`
 
+### Auth profile resolution
+
+The `authProfile` field is a **string key** — never a credential value. Credentials are never passed through the MCP envelope or stored in agent inputs.
+
+Resolution flow:
+
+1. The MCP implementation receives `authProfile: "uat-service-account"` in the request.
+2. It resolves the key at call time against the platform's **credential store** (environment variable set, secrets manager, or encrypted config — determined by the deployment profile: `local-dev` uses env vars; `uat`/`ist`/`prod` use a secrets manager such as AWS Secrets Manager or HashiCorp Vault).
+3. The resolved credential is used for the operation and is **never logged, returned, or included in any output payload**.
+4. If the `authProfile` key cannot be resolved, the MCP must return `error.code = "AUTH_PROFILE_NOT_FOUND"` — it must not silently fall back to unauthenticated access.
+5. `permissionsScope` is checked after resolution to ensure the resolved credential is authorized for the requested `environment` and operation type. If scope check fails, return `error.code = "PERMISSION_DENIED"`.
+
+The mapping of `authProfile` key → credential reference lives in `environment_profile.auth_profile` (data model section 32.1). MCPs must not maintain their own credential registries.
+
 ## 4.2 Provenance fields
 
 Every tool output should preserve provenance.
@@ -274,6 +288,86 @@ That creates one visual language between:
 
 * what the system “sees” while reading requirements
 * what the system “sees” while healing runtime UI shifts
+
+## 4.8 Timeout contracts
+
+Every MCP operation must have a defined timeout. If the operation does not complete within the timeout, the MCP returns `error.code = “TIMEOUT”` with `retryable: true`. The caller (Agent Runtime Service or Orchestration Service) is responsible for retry logic — the MCP does not retry internally.
+
+| MCP                    | Default timeout | Notes                                                                          |
+| ---------------------- | --------------- | ------------------------------------------------------------------------------ |
+| Filesystem MCP         | 5s              | File I/O; abnormal if exceeded                                                 |
+| Document Parser MCP    | 30s             | Large PDFs or complex DOCX may approach limit                                  |
+| Browser Reader MCP     | 45s             | Page render + screenshot + extraction; JavaScript-heavy pages may need full 45s |
+| State Map MCP          | 60s             | Multi-artifact fusion can be slow                                               |
+| Mismatch Detection MCP | 30s             |                                                                                |
+| Retrieval MCP          | 10s             | If exceeded, likely index or query issue                                        |
+| Graph Expansion MCP    | 10s             | Bounded traversal should be fast; timeout indicates runaway query               |
+| Context Pack MCP       | 15s             | Combines retrieval + expansion + assembly                                       |
+| Browser Automation MCP | 120s            | Per `execute_steps` call; individual step timeout managed inside the operation  |
+| API Runner MCP         | 30s             | Per `execute_request`; includes network roundtrip                              |
+| Evidence MCP           | 20s             | Storage write; large artifacts may approach limit                               |
+| Healing MCP            | 30s             | DOM scan + fingerprint comparison                                               |
+| Playbook MCP           | 15s             |                                                                                |
+| State Management MCP   | 45s             | Data seeding/reset operations may require DB roundtrips                         |
+| Test Asset MCP         | 10s             |                                                                                |
+| Trigger MCP            | 15s             | Graph impact analysis is the slow part                                          |
+
+Callers must not assume completion before the timeout expires. Long-running operations (Browser Automation, State Map, State Management) should be treated as async-capable: the MCP may return a job ID immediately and expose a polling or callback mechanism in a future version.
+
+## 4.9 Error codes and retryability
+
+The `error.code` field in the common error envelope uses string codes from the following registry. Each code carries a fixed `retryable` value unless overridden by context.
+
+### Universal codes (all MCPs)
+
+| Code                      | Retryable | Meaning                                                                    |
+| ------------------------- | --------- | -------------------------------------------------------------------------- |
+| `TIMEOUT`                 | true      | Operation did not complete within the defined timeout window               |
+| `AUTH_PROFILE_NOT_FOUND`  | false     | The `authProfile` key could not be resolved from the credential store      |
+| `PERMISSION_DENIED`       | false     | Resolved credential lacks the required scope for this operation            |
+| `INVALID_INPUT`           | false     | Request payload failed schema validation                                   |
+| `POLICY_BLOCKED`          | false     | Policy profile rejected the operation (e.g. diagnostic mode in PROD env)  |
+| `ENVIRONMENT_NOT_FOUND`   | false     | The specified `environment` is not registered in `environment_profile`     |
+| `INTERNAL_ERROR`          | true      | Unexpected internal failure; safe to retry with backoff                    |
+| `RATE_LIMITED`            | true      | Downstream resource is rate-limiting; retry after `retryAfterMs`          |
+
+### MCP-specific codes
+
+| MCP                    | Code                         | Retryable | Meaning                                                          |
+| ---------------------- | ---------------------------- | --------- | ---------------------------------------------------------------- |
+| Filesystem MCP         | `FILE_NOT_FOUND`             | false     | Specified path does not exist                                    |
+| Filesystem MCP         | `PATH_NOT_ALLOWED`           | false     | Path is outside approved case root or generated/ directory       |
+| Filesystem MCP         | `WRITE_REJECTED`             | false     | Write attempted to a non-generated/ path                         |
+| Document Parser MCP    | `UNSUPPORTED_FORMAT`         | false     | File type not in supported list                                  |
+| Document Parser MCP    | `PARSE_FAILED`               | false     | Document could not be parsed; may indicate corrupt file          |
+| Browser Reader MCP     | `PAGE_NOT_REACHABLE`         | true      | URL returned connection error; retry may resolve transient issue |
+| Browser Reader MCP     | `AUTH_FAILED`                | false     | Authentication to the target URL failed                          |
+| Browser Reader MCP     | `DOMAIN_NOT_APPROVED`        | false     | Target URL domain is not in the approved domain list             |
+| State Map MCP          | `STATE_MAP_NOT_FOUND`        | false     | Requested `stateMapId` does not exist                            |
+| State Map MCP          | `ARTIFACT_REF_MISSING`       | false     | One or more artifact refs not found in store                     |
+| Mismatch Detection MCP | `NO_ARTIFACTS_TO_COMPARE`    | false     | Fewer than two artifact refs provided for comparison             |
+| Retrieval MCP          | `INDEX_NOT_READY`            | true      | Index is being built; retry after delay                          |
+| Retrieval MCP          | `NO_RESULTS`                 | false     | Search returned zero candidates; not an error, just empty        |
+| Graph Expansion MCP    | `NODE_NOT_FOUND`             | false     | Seed node ID not found in the graph                              |
+| Graph Expansion MCP    | `DEPTH_EXCEEDED`             | false     | `maxDepth` exceeded the per-policy cap                           |
+| Browser Automation MCP | `SESSION_NOT_FOUND`          | false     | `sessionId` does not correspond to an active session             |
+| Browser Automation MCP | `STEP_ASSERTION_FAILED`      | false     | An assertion step failed; this is a test result, not an error    |
+| Browser Automation MCP | `STATE_SIGNAL_TIMEOUT`       | true      | `wait_for_state_signal` timed out; may retry if transient        |
+| API Runner MCP         | `ENDPOINT_UNREACHABLE`       | true      | HTTP connection failed; retry may resolve                        |
+| API Runner MCP         | `ASSERTION_FAILED`           | false     | API response did not match expected assertion                    |
+| Evidence MCP           | `STORAGE_WRITE_FAILED`       | true      | Object storage write failed; safe to retry                       |
+| Evidence MCP           | `EVIDENCE_NOT_FOUND`         | false     | Requested `evidenceId` does not exist                            |
+| Healing MCP            | `FINGERPRINT_NOT_FOUND`      | false     | `fingerprintRef` not found                                       |
+| Healing MCP            | `NO_CANDIDATE_FOUND`         | false     | Forensic scan found no plausible replacement; not an error       |
+| Playbook MCP           | `PLAYBOOK_NOT_FOUND`         | false     | `playbookId` not found                                           |
+| Playbook MCP           | `PROMOTION_BLOCKED`          | false     | Policy blocked playbook promotion (review required)              |
+| State Management MCP   | `PRECONDITION_FAILED`        | false     | Verified preconditions were not met; run cannot proceed          |
+| State Management MCP   | `SETUP_FAILED`               | true      | Data seeding failed; may retry if transient DB issue             |
+| Test Asset MCP         | `ASSET_NOT_FOUND`            | false     | `testAssetId` not found                                          |
+| Test Asset MCP         | `STATUS_TRANSITION_INVALID`  | false     | Requested status transition not allowed by lifecycle rules       |
+| Trigger MCP            | `NO_AFFECTED_CASES`          | false     | No cases were affected by the changed files; trigger is a no-op  |
+
+The `retryable: true` codes should be retried with **exponential backoff** (base 1s, max 30s, max 3 attempts) unless the error payload includes a `retryAfterMs` field, in which case that value takes precedence.
 
 ---
 
@@ -752,11 +846,65 @@ Store and retrieve forensic-grade execution evidence in a normalized way.
 
 ## Semantic Trace
 
-This remains a first-class feature.
+The semantic trace is a first-class forensic artifact. It is the chain-of-evidence record that links a requirement through the execution to the observed outcome.
 
-It should support:
+### `evidence.write_semantic_trace` payload
 
-* requirement → state → DOM → executed step → evidence
+```json
+{
+  "payload": {
+    "runId": "RUN-3001",
+    "runStepId": "RUNSTEP-1001",
+    "caseId": "CASE-101",
+    "trace": {
+      "requirementRef": "REQ-501",
+      "requirementText": "User can sign in with valid credentials",
+      "flowRef": "FLOW-1001",
+      "pageRef": "PAGE-301",
+      "stateRef": "STATE-LOGIN-READY",
+      "transitionRef": "TRANS-1001",
+      "targetStateRef": "STATE-DASHBOARD-STABLE",
+      "executedAction": {
+        "actionType": "click",
+        "targetLocator": "getByRole('button', { name: 'Sign in' })",
+        "fingerprintRef": "FPV-1002"
+      },
+      "observedOutcome": {
+        "outcomeType": "state_reached",
+        "stateRef": "STATE-DASHBOARD-STABLE",
+        "confidence": 0.97,
+        "evidenceRefs": ["EV-1001", "EV-1002"]
+      },
+      "verdict": "pass",
+      "notes": "State signal 'route_stable' observed within 320ms of click."
+    }
+  }
+}
+```
+
+### Semantic trace fields
+
+| Field                                | Required | Notes                                                                          |
+| ------------------------------------ | -------- | ------------------------------------------------------------------------------ |
+| `runId`                              | Yes      |                                                                                |
+| `runStepId`                          | Yes      | The step this trace covers                                                     |
+| `trace.requirementRef`               | Yes      | The requirement being validated by this step                                   |
+| `trace.requirementText`              | Yes      | Snapshot of requirement text at time of execution                              |
+| `trace.flowRef`                      | No       | Flow containing this step                                                      |
+| `trace.pageRef`                      | No       | Page the action occurred on                                                    |
+| `trace.stateRef`                     | No       | UI state before the action                                                     |
+| `trace.transitionRef`                | No       | Transition being exercised                                                     |
+| `trace.targetStateRef`               | No       | Expected state after the action                                                |
+| `trace.executedAction.actionType`    | Yes      | `navigate`, `fill`, `click`, `assert`, `wait_for_state_signal`, `api_call`     |
+| `trace.executedAction.targetLocator` | No       | Playwright locator or API endpoint used                                        |
+| `trace.executedAction.fingerprintRef`| No       | Fingerprint version used for locator resolution                                |
+| `trace.observedOutcome.outcomeType`  | Yes      | `state_reached`, `assertion_passed`, `assertion_failed`, `state_not_reached`   |
+| `trace.observedOutcome.confidence`   | No       | Confidence that the observed outcome matches the expected outcome               |
+| `trace.observedOutcome.evidenceRefs` | Yes      | At least one screenshot or DOM snapshot evidence ref must be included          |
+| `trace.verdict`                      | Yes      | `pass`, `fail`, `skip`                                                         |
+| `trace.notes`                        | No       | Free text — e.g. state signal timing, healing decision notes                  |
+
+A semantic trace record must be written for every `RunStep` where `action_type = "assert"` or `action_type = "wait_for_state_signal"`. It is optional but recommended for `click` and `fill` steps on critical paths.
 
 ## Policy constraints
 
@@ -1069,7 +1217,75 @@ Healing / playbook / state-map tools should also emit:
 
 ---
 
-# 23. Build order
+# 23. MCP versioning strategy
+
+MCP contracts must be versioned so that changes to operation schemas do not silently break calling services.
+
+## 23.1 Version field
+
+Every MCP operation response includes a `mcpVersion` field in the response envelope alongside `toolCallId` and `timestamp`:
+
+```json
+{
+  "toolCallId": "TOOL-9001",
+  "mcpVersion": "1.2.0",
+  "status": "success",
+  "timestamp": "...",
+  "data": {}
+}
+```
+
+The `mcpVersion` is also stored in `tool_invocation_log.tool_version` (data model section 24.2).
+
+## 23.2 Versioning scheme
+
+MCP contracts use **semantic versioning**: `vMAJOR.MINOR.PATCH`.
+
+| Increment | When to use                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+| `PATCH`   | Internal fix — no change to request or response schema. Callers need not update.                       |
+| `MINOR`   | New optional request fields or new optional response fields added. Backward-compatible. Callers may ignore new fields. |
+| `MAJOR`   | Required request fields added, response fields removed or renamed, operation behavior semantically changed. Callers must update. |
+
+## 23.3 Operation-level contracts
+
+Each operation within an MCP is independently versioned. The MCP version declared in the envelope is the version of the highest-versioned operation in that MCP. Callers that only use lower-versioned operations are not affected by a `MINOR` bump driven by a different operation.
+
+## 23.4 Breaking change protocol
+
+When a `MAJOR` version is required:
+
+1. The new version of the operation is added alongside the old version using an explicit `operationVersion` field in the request payload: `"operationVersion": "v2"`.
+2. The old version is supported for one full sprint cycle before deprecation.
+3. Deprecation is signaled by a `warnings` entry in the response: `"OPERATION_DEPRECATED: use operationVersion v2"`.
+4. After the deprecation window, the old version returns `error.code = "OPERATION_VERSION_RETIRED"` with `retryable: false`.
+
+## 23.5 Version registry
+
+The canonical version for each MCP is declared in `api/mcp/registry.yaml`:
+
+```yaml
+mcps:
+  filesystem:
+    version: "1.0.0"
+  document-parser:
+    version: "1.0.0"
+  browser-reader:
+    version: "1.1.0"
+  state-map:
+    version: "1.0.0"
+  evidence:
+    version: "1.2.0"
+  healing:
+    version: "1.0.0"
+  # ... remaining MCPs
+```
+
+The Agent Runtime Service reads this registry at startup. If a service calls an MCP at a version higher than the registered version, it must fail fast with a startup error rather than discovering the mismatch at call time.
+
+---
+
+# 24. Build order
 
 The recommended first build steps are:
 
@@ -1093,7 +1309,7 @@ That build order is correct for the final architecture.
 
 ---
 
-# 24. Final summary
+# 25. Final summary
 
 This MCP layer is the governed “language of quality” for the platform.
 

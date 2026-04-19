@@ -1689,43 +1689,136 @@ If invalid:
 
 ---
 
-# 17. Prompt versioning
+# 17. LLM provider and model selection
 
-Each agent prompt should be versioned.
+The platform commits to the **Anthropic Claude API** as the LLM provider for all agents. This is not a recommendation — it is the committed choice recorded in the architectural design (Section 29 — Platform Technology Profile).
 
-## Why
+## 17.1 Committed models
 
-* reproducibility
-* auditability
-* controlled improvement
-* debugging poor outcomes
-* retrieval-context-aware regression testing
-* playbook and healing review traceability
+| Model ID                     | Use case                                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `claude-sonnet-4-6`          | **Default for all agents.** Strong reasoning, 200k context window, suitable for all pipeline stages. Used for: Intake, Artifact Ingestion, Case Understanding, Requirement Mapping, Test Authoring, Failure Triage, Defect Drafting, Healing, Playbook Recommendation, Review Recommendation, Learning. |
+| `claude-opus-4-6`            | **Reserved for high-stakes complex reasoning.** Used only when Sonnet 4.6 produces consistently insufficient output on a specific task and the latency and cost trade-off is justified. Requires explicit `modelId` override in the agent task configuration. |
+| `claude-haiku-4-5-20251001`  | **Lightweight classification only.** Candidate for: artifact type pre-classification, context gap detection, quick schema repair passes. Must not be used for triage, healing proposals, defect drafting, or playbook promotion decisions. |
 
-## Recommended metadata
+## 17.2 Model selection rules
+
+* All agent tasks default to `claude-sonnet-4-6`. No agent may deviate without an explicit `modelId` set in the agent task configuration.
+* Escalating to `claude-opus-4-6` requires a documented reason in the agent task record — cost-blind escalation is not permitted.
+* `claude-haiku-4-5-20251001` must never be used for any task whose output drives a human approval decision.
+* If the Anthropic API is unavailable, the platform must surface a `model_unavailable` error — no silent fallback to a different provider without an explicit operator override authorized under the active policy profile.
+
+## 17.3 Model version pinning
+
+The model ID stored in `agent_task_execution.model_profile` must be the **exact API model identifier** (`claude-sonnet-4-6`), never an alias (`sonnet`, `latest`). When Anthropic releases a new model version, a prompt compatibility review is required before the new ID is used in production tasks.
+
+---
+
+# 18. Prompt versioning strategy
+
+Every agent prompt is versioned, stored, and promoted through a controlled lifecycle. Versioning enables reproducibility, auditability, debugging of poor outputs, and safe iteration without breaking in-flight workflows.
+
+## 18.1 Why versioning is mandatory
+
+* A triage output produced months ago must be reproducible using the same prompt version and model that produced it.
+* A healing proposal approved by a human reviewer must be traceable back to the exact prompt that generated it.
+* Rolling back a prompt change must not require a data migration.
+
+## 18.2 Version naming scheme
+
+Prompts use **semantic versioning**: `vMAJOR.MINOR.PATCH`.
+
+| Increment | When to use                                                                                              |
+| --------- | -------------------------------------------------------------------------------------------------------- |
+| `PATCH`   | Wording improvements, clarity fixes — no change to output schema or reasoning behavior                  |
+| `MINOR`   | New output fields added (backward-compatible), new guardrails, new context section handled              |
+| `MAJOR`   | Output schema breaking change, core reasoning behavior changed, agent scope changed, model switched      |
+
+A `MAJOR` bump requires a compatibility review against the downstream output validators and relational schema for the affected agent.
+
+## 18.3 Storage location
+
+Prompt bodies are stored as versioned files in the source tree under `api/prompts/<agent-name>/`:
+
+```
+api/prompts/
+  intake-agent/
+    v1.0.0.txt
+    v1.1.0.txt
+  test-authoring-agent/
+    v1.0.0.txt
+    v2.0.0.txt
+  failure-triage-agent/
+    v1.0.0.txt
+```
+
+The active version for each agent is declared in `api/prompts/registry.yaml`:
+
+```yaml
+agents:
+  intake-agent:
+    production: v1.1.0
+    staging: v1.1.0
+  test-authoring-agent:
+    production: v1.0.0
+    staging: v2.0.0
+  failure-triage-agent:
+    production: v1.0.0
+    staging: v1.0.0
+```
+
+The Agent Runtime Service reads `registry.yaml` at startup and resolves prompt bodies from disk. Prompt text must never be hardcoded inline in service code.
+
+## 18.4 Promotion workflow
+
+```
+development → staging → production
+```
+
+| Stage       | Who                 | What happens                                                                                                     |
+| ----------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| development | Prompt author       | New version file created. `registry.yaml` staging pointer updated. Integration tests run.                       |
+| staging     | QA / platform owner | Prompt runs against golden context packs. Output quality reviewed against baselines. Validation must pass 100%. |
+| production  | Platform owner      | `registry.yaml` production pointer updated. Previous version file retained on disk for rollback.                |
+
+A prompt version file is **never deleted** once it has been used in production — it is archived even when removed from the registry.
+
+## 18.5 Golden set evaluation
+
+Before promotion to staging, a prompt version must pass a golden set evaluation:
+
+* Each agent maintains a minimum of 5 golden context packs under `api/prompts/<agent-name>/golden/`.
+* Each golden pack has a corresponding expected output: `api/prompts/<agent-name>/golden/<id>.expected.json`.
+* The evaluation runner calls the agent with each golden pack and diffs output against expected: schema validity, required field presence, confidence range, source refs presence.
+* `MINOR` bump: ≥ 80% pass rate required before staging promotion.
+* `MAJOR` bump: full manual review of all golden cases required.
+
+## 18.6 Metadata stored with every agent output
 
 ```json
 {
   "agentName": "test-authoring-agent",
-  "promptVersion": "v3.0.0-final-arch",
+  "promptVersion": "v1.0.0",
   "schemaVersion": "v1.0.0",
-  "modelProfile": "qa-authoring-default"
+  "modelId": "claude-sonnet-4-6",
+  "contextPackId": "CTXPACK-1001",
+  "taskId": "TASK-4001"
 }
 ```
 
-Store this with:
+Store this in: `agent_task_execution`, `test_asset_version.prompt_version`, `defect_draft.created_by_task_id`, `triage_result.created_by_task_id`, `healing_event.created_by_task_id`, `learning_signal.created_by_task_id`.
 
-* generated assets
-* triage outputs
-* defect drafts
-* healing outputs
-* playbook recommendations
-* learning signals
-* context pack logs
+## 18.7 Breaking change handling
+
+When a `MAJOR` version bump changes the output schema:
+
+1. The new output schema must be registered in the output validator before the new version reaches staging.
+2. Downstream services consuming the output must be updated before or simultaneously with production promotion.
+3. Old output records in the relational store are **not migrated** — they remain with their original schema version; consumers must handle both versions.
 
 ---
 
-# 18. Anti-patterns to avoid
+# 19. Anti-patterns to avoid
 
 ## 18.1 One giant master prompt
 
@@ -1773,7 +1866,7 @@ Bad because it causes false certainty and weak triage.
 
 ---
 
-# 19. Recommended initial prompt set for V1
+# 20. Recommended initial prompt set for V1
 
 Start with these agents:
 
@@ -1797,7 +1890,7 @@ This is still the right initial set.
 
 ---
 
-# 20. Final prompt design summary
+# 21. Final prompt design summary
 
 Your platform’s agent prompts should be:
 

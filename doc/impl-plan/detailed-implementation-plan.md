@@ -23,7 +23,7 @@ Source design references:
 - `api/doc/impl-design/playwrite hybride framework design.md`
 - `api/doc/impl-design/data model design.md`
 - `api/doc/impl-design/knowledge graph schema design.md`
-- `api/doc/impl-design/agent promts design.md`
+- `api/doc/impl-design/agent prompts design.md`
 
 ## 2. Baseline Stack and Environments
 
@@ -94,6 +94,54 @@ $env:AI_QA_EXECUTION_BACKEND="simulated"
 $env:AI_QA_PLAYWRIGHT_WORK_ROOT="./.local/playwright_runs"
 ```
 
+### 2.5 Required environment variables — integration profile
+
+```bash
+AI_QA_ENVIRONMENT=integration
+AI_QA_REPOSITORY_BACKEND=sqlalchemy
+AI_QA_DATABASE_URL=postgresql+asyncpg://qa_user:qa_pass@localhost:5432/ai_qa_tester
+AI_QA_BLOB_BACKEND=s3
+AI_QA_BLOB_BUCKET=ai-qa-tester-integration
+AI_QA_BLOB_ENDPOINT=http://localhost:9000        # localstack or minio
+AI_QA_VECTOR_BACKEND=qdrant
+AI_QA_QDRANT_URL=http://localhost:6333
+AI_QA_QDRANT_COLLECTION=ai_qa_tester_integration
+AI_QA_EVENT_BUS_BACKEND=redis
+AI_QA_REDIS_URL=redis://localhost:6379/0
+AI_QA_EXECUTION_BACKEND=playwright
+AI_QA_PLAYWRIGHT_WORK_ROOT=./.local/playwright_runs
+AI_QA_NEO4J_URL=bolt://localhost:7687
+AI_QA_NEO4J_USER=neo4j
+AI_QA_NEO4J_PASSWORD=neo4j_pass
+AI_QA_EMBEDDING_MODEL=voyage-3-large
+AI_QA_VOYAGE_API_KEY=<resolved from secrets manager at runtime>
+AI_QA_ANTHROPIC_API_KEY=<resolved from secrets manager at runtime>
+```
+
+### 2.6 Required environment variables — CI profile
+
+```bash
+AI_QA_ENVIRONMENT=ci
+AI_QA_REPOSITORY_BACKEND=sqlalchemy
+AI_QA_DATABASE_URL=postgresql+asyncpg://qa_user:qa_pass@localhost:5432/ai_qa_tester_ci
+AI_QA_BLOB_BACKEND=local
+AI_QA_BLOB_ROOT=/tmp/ai_qa_ci_blobs
+AI_QA_VECTOR_BACKEND=local
+AI_QA_VECTOR_STORE_PATH=/tmp/ai_qa_ci_vectors.json
+AI_QA_EVENT_BUS_BACKEND=memory
+AI_QA_EXECUTION_BACKEND=simulated
+AI_QA_NEO4J_URL=bolt://localhost:7687
+AI_QA_NEO4J_USER=neo4j
+AI_QA_NEO4J_PASSWORD=neo4j_ci
+AI_QA_EMBEDDING_MODEL=voyage-3-large
+AI_QA_VOYAGE_API_KEY=<CI secrets; never committed>
+AI_QA_ANTHROPIC_API_KEY=<CI secrets; never committed>
+AI_QA_LLM_STUB_MODE=true           # stubs LLM calls in unit/contract/integration tests
+AI_QA_SKIP_EXTERNAL_CALLS=true     # blocks any real outbound network in CI
+```
+
+CI must never reach external APIs except in explicitly tagged integration test jobs. `AI_QA_LLM_STUB_MODE=true` and `AI_QA_SKIP_EXTERNAL_CALLS=true` are mandatory for all test types except the designated integration test job.
+
 ## 3. Global Test Data Strategy
 
 ### 3.1 Canonical synthetic project datasets
@@ -160,22 +208,42 @@ All phases must follow these assertion standards.
 
 ## 5. Phase-by-Phase Implementation Steps
 
-## Step 0 - Spec Lock and Delivery Guardrails
+## Step 0 - Spec Lock, TDRs, and Delivery Guardrails
 
 ### What to implement
 
-1. Canonical enum definitions:
-- `execution_mode` (`draft`, `diagnostic`, `regression`) as single source of truth.
-- lifecycle statuses for request/run/asset/approval.
-2. Common envelopes for:
-- MCP request/response/error
-- agent input/output
-- event bus messages
-3. Cross-doc alignment checklist and version stamp.
+1. **Technology Decision Records (TDRs)** — one record per committed technology choice. These are the foundational decisions that every subsequent step depends on. TDRs must be created and merged before Step 1 begins.
+
+   Required TDRs (stored under `api/doc/tdr/`):
+
+   | TDR ID   | Decision                                                    | Rationale reference                          |
+   | -------- | ----------------------------------------------------------- | -------------------------------------------- |
+   | TDR-001  | PostgreSQL 15+ as the relational store (system of record)  | Arch doc Section 29 — Platform Technology Profile |
+   | TDR-002  | Neo4j as the graph store                                   | Arch doc Section 29; KG schema design Section 16 |
+   | TDR-003  | Qdrant as the primary vector store; pgvector as fallback   | Arch doc Section 29; RAG design Section 11.3 |
+   | TDR-004  | Redis Streams as the event bus                             | Arch doc Section 29 |
+   | TDR-005  | `voyage-3-large` as the embedding model                    | RAG design Section 11.3 |
+   | TDR-006  | Claude API (`claude-sonnet-4-6` default) as the LLM        | Arch doc Section 29; Agent prompts design Section 17 |
+   | TDR-007  | Claude Vision + Tesseract OCR for visual extraction        | Arch doc Section 29; RAG design Section 9.6 |
+   | TDR-008  | S3-compatible object store for evidence and artifacts      | Arch doc Section 29 |
+   | TDR-009  | Transactional Outbox for cross-store consistency           | Service design Section 7.4 |
+   | TDR-010  | Choreography-based Saga for multi-stage workflow compensation | Service design Section 7.4 |
+
+   Each TDR must contain: decision statement, context, alternatives considered, consequences, and date of decision.
+
+2. Canonical enum definitions:
+   - `execution_mode` (`draft`, `diagnostic`, `regression`) as single source of truth.
+   - lifecycle statuses for request/run/asset/approval.
+3. Common envelopes for:
+   - MCP request/response/error
+   - agent input/output
+   - event bus messages
+4. Cross-doc alignment checklist and version stamp.
 
 ### Environment setup
 
 - Local-dev profile only.
+- Add `api/doc/tdr/` for Technology Decision Records.
 - Add `api/doc/impl-plan/contracts/` for frozen JSON schemas.
 
 ### How to test
@@ -724,7 +792,41 @@ All phases must follow these assertion standards.
 
 - Production-minded MVP is operable with measurable quality gates.
 
-## 6. Test Suite Matrix (Recommended)
+## 6. Step Effort Estimates
+
+Estimates use story points on the Fibonacci scale (1, 2, 3, 5, 8, 13). One point ≈ half a day of focused implementation work for a single engineer. These are complexity estimates, not time guarantees.
+
+| Step | Title                                          | Points | Key complexity driver                                                 |
+| ---- | ---------------------------------------------- | ------ | --------------------------------------------------------------------- |
+| 0    | Spec Lock, TDRs, and Delivery Guardrails       | 5      | TDR documentation + enum/envelope schema authoring + validation tests |
+| 1    | Platform Backbone                              | 13     | Orchestration state machine + idempotency + policy service + audit    |
+| 2    | Data Model and Persistence Foundation          | 8      | Migration set + repository abstraction + PostgreSQL integration        |
+| 3    | MCP Core Set                                   | 8      | Four MCPs + shared envelope middleware + policy constraints            |
+| 4    | Distributed Understanding Pipeline             | 13     | Artifact normalization + fusion + chunking + metadata enrichment       |
+| 5    | Semantic State and Mismatch Detection          | 8      | State map generator + mismatch classifier + severity gates            |
+| 6    | Graph-RAG Foundation                           | 13     | Hybrid index + graph linking + context pack builder + retrieval logs  |
+| 7    | Agent Runtime and Prompt Governance            | 8      | Prompt registry + structured output validation + guardrails           |
+| 8    | Test Asset Pipeline and Playwright Framework   | 8      | Scenario compiler + abstraction layers + generated asset traceability |
+| 9    | Execution, Evidence, and State Management      | 8      | Execution orchestration + evidence finalization + state setup/cleanup |
+| 10   | Triage, Defect Drafting, HITL                  | 8      | Classification engine + defect packet + approval workflow             |
+| 11   | Healing and Deterministic Playbook Promotion   | 8      | Forensic scan + fingerprint comparison + promotion governance         |
+| 12   | Operational Hardening, SLOs, Shift-Left        | 5      | Pre-commit hook + observability + retention + CI gates                |
+|      | **Total**                                      | **113**| ≈ 57 engineer-days (11–12 weeks solo; 5–6 weeks with 2 engineers)    |
+
+### Sprint allocation guidance
+
+| Sprint | Steps         | Points | Goal                                              |
+| ------ | ------------- | ------ | ------------------------------------------------- |
+| 1      | 0, 1, 2       | 26     | Contracts locked, backbone running, DB migrated   |
+| 2      | 3, 4, 5       | 29     | Ingestion → understanding → state map → mismatch  |
+| 3      | 6, 7          | 21     | Graph-RAG + agent runtime operational             |
+| 4      | 8, 9          | 16     | Test assets generated and executed                |
+| 5      | 10, 11        | 16     | Triage, defects, healing, playbooks               |
+| 6      | 12            | 5      | Hardening, SLOs, shift-left, production readiness |
+
+These estimates assume a single experienced full-stack engineer. Add 20% buffer per sprint for integration surprises, environment setup overhead, and review cycles.
+
+## 7. Test Suite Matrix (Recommended)
 
 1. `tests/unit`
 - pure service logic
@@ -744,19 +846,94 @@ All phases must follow these assertion standards.
 - load and latency
 - retention correctness
 
-## 7. CI/CD Quality Gates
+## 8. CI/CD Pipeline
 
-Minimum gates per merge:
+### 8.1 Pipeline structure
 
-1. All unit + contract + integration tests pass.
-2. No critical schema drift.
-3. Determinism replay suite passes for regression mode.
-4. Security checks pass:
-- secret masking checks
-- policy boundary tests
-5. Evidence and traceability completeness threshold met.
+The CI/CD pipeline has four stages executed in order. Stages are independent within their tier; a stage failure stops the pipeline.
 
-## 8. Definition of Done for Production-Minded MVP
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 1 — Fast checks (< 3 min)                             │
+│   lint + type check                                         │
+│   unit tests (AI_QA_LLM_STUB_MODE=true)                    │
+│   contract schema tests                                     │
+│   secret-masking checks                                     │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ pass
+┌───────────────────────▼─────────────────────────────────────┐
+│ Stage 2 — Integration tests (< 10 min)                      │
+│   DB migration smoke (PostgreSQL ephemeral)                  │
+│   repository roundtrip tests                                │
+│   MCP contract tests (stubs for external services)         │
+│   policy boundary tests                                     │
+│   retrieval + graph expansion tests (local vector/Neo4j)   │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ pass
+┌───────────────────────▼─────────────────────────────────────┐
+│ Stage 3 — Determinism and regression gates (< 8 min)        │
+│   determinism replay suite (same input → same output)       │
+│   regression mode enforcement tests                         │
+│   context pack bounds tests                                 │
+│   evidence traceability completeness assertions             │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ pass
+┌───────────────────────▼─────────────────────────────────────┐
+│ Stage 4 — Deploy (on main branch only)                      │
+│   build Docker images                                       │
+│   push to registry                                          │
+│   deploy to integration environment                         │
+│   smoke test against integration environment                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 Trigger conditions
+
+| Event                         | Stages run         | Notes                                         |
+| ----------------------------- | ------------------ | --------------------------------------------- |
+| Pull request opened / updated | Stages 1, 2, 3     | No deploy; all gates must pass for merge      |
+| Push to `main`                | Stages 1, 2, 3, 4  | Full pipeline including deploy                |
+| Nightly scheduled run         | Stages 1, 2, 3, 4  | Full integration + smoke against live env     |
+| Manual trigger                | Configurable       | Any stage subset can be triggered manually    |
+
+### 8.3 Tooling
+
+| Concern            | Tool                                                       |
+| ------------------ | ---------------------------------------------------------- |
+| Pipeline runner    | GitHub Actions (primary); adaptable to GitLab CI          |
+| Test runner        | `pytest` with `pytest-asyncio` for async service tests    |
+| Linting            | `ruff` (Python); `mypy` for type checks                   |
+| Secret scanning    | `detect-secrets` pre-commit hook + CI scan step           |
+| DB migrations      | Alembic; ephemeral PostgreSQL via Docker service in CI    |
+| Graph store in CI  | Neo4j via Docker service (`neo4j:5-community`)            |
+| Coverage reporting | `pytest-cov`; fail if coverage drops below 70% on new code|
+| Contract validation| JSON Schema via `jsonschema` library                      |
+
+### 8.4 Minimum gates per merge (PR blocking)
+
+All of the following must be green before a PR can merge to `main`:
+
+1. All unit + contract tests pass with `AI_QA_LLM_STUB_MODE=true`.
+2. All integration tests pass (PostgreSQL ephemeral, local vector, Neo4j Docker).
+3. No schema drift — JSON schema contract tests must pass 100%.
+4. Determinism replay suite passes — same context pack + same prompt version → structurally equivalent output.
+5. Regression mode enforcement tests pass — no exploratory recommendation leaks into regression mode outputs.
+6. Secret masking checks pass — no credential patterns in logs or output fixtures.
+7. Policy boundary tests pass — policy violations fail closed, not open.
+8. Code coverage does not drop below 70% on modified files.
+
+### 8.5 Release checklist (before Stage 4 deploy)
+
+- [ ] All merge gates green on `main`.
+- [ ] TDR registry (`api/doc/tdr/`) has no unresolved items.
+- [ ] `api/prompts/registry.yaml` production pointers reviewed.
+- [ ] `api/mcp/registry.yaml` MCP versions reviewed.
+- [ ] DB migration scripts reviewed and tested up/down.
+- [ ] Environment variables checklist (sections 2.4, 2.5, 2.6) confirmed for target environment.
+- [ ] No known blocking mismatch warnings in the active sprint's test cases.
+- [ ] Smoke test against integration environment passes.
+
+## 9. Definition of Done for Production-Minded MVP
 
 MVP is complete only when:
 
@@ -767,7 +944,7 @@ MVP is complete only when:
 5. Synthetic datasets cover happy path, negative path, and flaky/stability path.
 6. CI gates enforce contract integrity and determinism.
 
-## 9. Immediate Next Sprint Plan (First 2 Weeks)
+## 10. Immediate Next Sprint Plan (First 2 Weeks)
 
 Week 1:
 

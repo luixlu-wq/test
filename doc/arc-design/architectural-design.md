@@ -1251,9 +1251,285 @@ Pre-commit + optional watch mode is the correct design.
 * execute destructive actions
 * run in sensitive environments
 
+## Policy Profiles
+
+Policy profiles define which action tiers are permitted for a given request context. They are defined in managed configuration, not in user data.
+
+Each policy profile specifies:
+
+* which environments are accessible
+* which action tiers are permitted
+* which approval thresholds apply
+* which evidence requirements are mandatory
+* whether healing persistence is allowed
+* whether playbook promotion is allowed
+
+### Profile lifecycle
+
+* profiles are defined in a managed configuration file or policy registry
+* profiles are assigned at request submission time by the caller or derived from the environment
+* profiles are immutable during a run
+* profiles are versioned alongside the platform codebase
+* profile applications are recorded in the audit log
+
+Suggested default profiles:
+
+* `read-only` — Tier 0 only, no execution
+* `standard-controlled` — Tier 0 and Tier 1, no external submission
+* `full-controlled` — All tiers with approval gates for Tier 2 actions
+* `local-dev` — All tiers with relaxed approval requirements for local development
+
+### Role definitions
+
+The platform recognizes these actor roles:
+
+| Role | Description | Permitted tiers |
+| --- | --- | --- |
+| `reader` | Can view runs, evidence, and defect drafts | Tier 0 read only |
+| `submitter` | Can submit QA requests and trigger execution | Tier 0 and Tier 1 |
+| `reviewer` | Can approve, reject, and reclassify HITL items | Tier 0 and Tier 1 |
+| `operator` | Can manage cases, assets, and playbooks | Tier 0 and Tier 1 |
+| `admin` | Can perform all actions including Tier 2 where policy allows | All tiers |
+| `service` | Internal service identity for agent and worker processes | Scoped to service function |
+
 ---
 
-# 28. Non-Functional Requirements
+# 28. Identity and Access Model
+
+The platform requires a defined identity model to support multi-user operation, HITL review workflow, and governance.
+
+## 28.1 Identity categories
+
+### Human users
+
+Individuals who interact with the platform through CLI, local UI, or API.
+
+Roles include: reader, submitter, reviewer, operator, admin.
+
+### Service identities
+
+Internal processes that act on behalf of the platform.
+
+Examples:
+
+* orchestration service
+* agent runtime
+* browser worker
+* API runner worker
+
+Service identities must:
+
+* authenticate with scoped credentials
+* have permissions bounded to their service function
+* never escalate to human-user-level Tier 2 actions without an explicit approval gate
+
+### Agent runtime
+
+Agents are a special class of service identity.
+
+Agents:
+
+* act only through MCP tool contracts
+* cannot directly mutate approved assets or persisted healing without a Tier 2 approval gate
+* must include their agent name and task ID in all tool calls for audit
+
+## 28.2 Authentication model
+
+The platform supports these authentication mechanisms:
+
+### Local-first mode
+
+* single-user or trusted-team mode
+* API key or local token
+* no external identity provider required
+* suitable for local-dev and small team use
+
+### Integrated mode
+
+* OIDC/OAuth2 compatible
+* supports SSO via corporate identity provider
+* role assignments via identity provider groups or local role mapping
+* deferred to Phase 3 native integrations
+
+The authentication mechanism must be replaceable without requiring service redesign.
+
+## 28.3 Authorization model
+
+Authorization follows a role-based access control model.
+
+Rules:
+
+* every inbound request carries an identity
+* the identity resolves to a role
+* the role is combined with the request policy profile to determine permitted actions
+* all authorization decisions are logged in the audit trail
+
+## 28.4 Credential and session isolation
+
+* test environment credentials must never appear in prompts, logs, or agent context packs
+* browser authentication profiles are stored separately from the request payload
+* credentials are resolved by the execution service from a managed secrets store
+* agents receive only a profile reference, not the raw credential
+
+## 28.5 HITL reviewer identity
+
+When an approval task is created:
+
+* it is assigned to a specific reviewer or a reviewer role group
+* the reviewer must authenticate before recording a decision
+* decisions are attributed to the reviewer identity in the audit log
+* anonymous or unattributed decisions are not permitted
+
+---
+
+# 29. Platform Technology Profile
+
+This section defines the required storage categories and committed technology choices for each category.
+
+Technology choices must satisfy the platform's requirements without creating unnecessary operational complexity. The choices below are the committed defaults. Substitutions require a documented decision and a migration path.
+
+## 29.1 Relational database
+
+**Purpose:** Operational records, workflow state, audit logs, metadata for all domains.
+
+**Required:** Yes — this is the primary system of record.
+
+**Committed choice:**
+
+* Production: PostgreSQL 15+
+* Local development: SQLite 3.x via the same ORM abstraction
+
+**Key requirements:**
+
+* ACID transactions
+* JSON column support for flexible metadata fields
+* Sufficient index support for foreign-key-heavy relational queries
+
+## 29.2 Graph store
+
+**Purpose:** Explicit entity relationships, traceability, graph expansion neighborhoods, lineage queries.
+
+**Required:** Yes — relational joins cannot efficiently support multi-hop traceability at production scale.
+
+**Committed choice:**
+
+* Neo4j Community or Enterprise (self-hosted) as the primary graph store
+* For early-stage local development, a graph layer backed by relational adjacency tables is acceptable as a temporary shim, with a defined migration path to Neo4j
+
+**Key requirements:**
+
+* Cypher query language support
+* Support for relationship properties such as confidence, createdAt, and sourceRefs
+* Uniqueness constraints on node IDs
+
+## 29.3 Vector and retrieval index
+
+**Purpose:** Chunk retrieval, semantic search, hybrid BM25 and dense vector retrieval, retrieval views.
+
+**Required:** Yes for any agent reasoning capability.
+
+**Committed choice:**
+
+* Qdrant (self-hosted) as the primary vector store
+* pgvector as an acceptable alternative if a unified PostgreSQL deployment is preferred
+* Local development fallback: a JSON-backed local vector store with cosine similarity, acceptable for early iteration only, not for production
+
+**Key requirements:**
+
+* Hybrid retrieval supporting both BM25 keyword search and dense vector search
+* Metadata filter support on all indexed chunk fields
+* Payload storage per chunk for metadata-only queries
+
+## 29.4 Object storage
+
+**Purpose:** Raw artifact files, screenshots, traces, videos, generated test files, playbook files, evidence blobs.
+
+**Required:** Yes.
+
+**Committed choice:**
+
+* Local filesystem with path-based references for local-dev
+* S3-compatible object storage for production: AWS S3, MinIO, or equivalent
+
+**Key requirements:**
+
+* Immutable object writes
+* Content-addressable storage preferred for evidence integrity
+* Retention lifecycle rules configurable per bucket or path prefix
+
+## 29.5 Event bus
+
+**Purpose:** Asynchronous stage triggering, service-to-service event delivery, workflow advancement.
+
+**Required:** For async workflows. Synchronous in-process fallback is acceptable in local-dev and unit tests.
+
+**Committed choice:**
+
+* Redis Streams as the primary recommended choice for simplicity and low operational overhead
+* RabbitMQ as an acceptable alternative
+* In-process event dispatcher allowed for local-dev and unit tests only
+
+**Key requirements:**
+
+* At-least-once delivery
+* Message persistence for workflow events
+* Consumer group support for worker scaling
+
+## 29.6 LLM provider
+
+**Purpose:** Agent reasoning, artifact fusion, test authoring, triage, defect drafting, learning.
+
+**Required:** Yes.
+
+**Committed choice:**
+
+* Claude API (Anthropic) as the primary LLM provider
+* Any OpenAI-compatible API endpoint as an acceptable secondary or fallback option
+* The LLM provider must be abstracted behind an LLM gateway interface so it can be replaced without agent prompt redesign
+
+**Key requirements:**
+
+* Structured output support via JSON mode or tool-use schema enforcement
+* Context window sufficient for typical bounded context packs, minimum 32k tokens
+* Streaming support for long-running agent tasks
+
+## 29.7 Embedding model
+
+**Purpose:** Chunk vectorization for the retrieval index.
+
+**Required:** Yes.
+
+**Committed choice:**
+
+* A fixed, versioned embedding model per deployment
+* Recommended starting point: `text-embedding-3-small` (OpenAI) or a self-hosted sentence-transformer model
+* The embedding model version must be stored alongside each indexed chunk record so that re-embedding can be triggered when the model is upgraded
+
+**Key requirements:**
+
+* Stable output dimensions across the deployment lifetime
+* The embedding model must never change without a full re-indexing plan
+* Embedding model version is a first-class operational configuration value, not a code constant
+
+## 29.8 Vision and OCR
+
+**Purpose:** Wireframe and screenshot content extraction for distributed understanding.
+
+**Required:** For visual artifact ingestion. Deferrable in early phases if wireframes are provided as annotated text or structured JSON.
+
+**Committed choice:**
+
+* Any multimodal LLM vision capability (Claude Vision or equivalent) for structured field extraction from images
+* Tesseract OCR as a lightweight fallback for text-only extraction from screenshots
+
+**Key requirements:**
+
+* Output must be structured text suitable for chunking
+* Extraction confidence must be preserved as source quality metadata on the resulting artifact chunk
+
+---
+
+# 30. Non-Functional Requirements
 
 ## Reliability
 
@@ -1261,6 +1537,25 @@ Pre-commit + optional watch mode is the correct design.
 * controlled retries
 * stable evidence collection
 * React-aware state synchronization
+
+### Workflow orchestrator recovery
+
+The orchestration service must support recovery from partial failures without duplicating completed work.
+
+Required behaviors:
+
+* workflow stage state is persisted to durable storage after each stage completes
+* if the orchestrator restarts mid-workflow, it resumes from the last completed stage
+* stage execution is idempotent — re-executing a completed stage produces the same output and no duplicate side-effects
+* partially completed stages are retried from the beginning, not from an arbitrary midpoint
+* failed stages produce structured error records that include the failure reason and a retryability classification
+
+Retryability classifications:
+
+* `retryable_transient` — network timeout, temporary resource unavailability; retry automatically
+* `retryable_with_backoff` — rate limit or resource contention; retry with exponential backoff
+* `not_retryable` — invalid input, policy violation, or unrecoverable state; halt and require human review
+* `requires_manual_intervention` — partial progress with unknown state; alert and pause workflow
 
 ## Auditability
 
@@ -1290,7 +1585,7 @@ Tool and source integrations should remain replaceable.
 
 ---
 
-# 29. Recommended Phased Delivery
+# 31. Recommended Phased Delivery
 
 ## Phase 1 — Current Production-Minded MVP
 
@@ -1312,6 +1607,8 @@ Build:
 * defect draft generation
 * HITL workflow
 * state management
+* identity and access model (local-first mode)
+* policy profile enforcement
 
 ## Phase 2 — Operational Hardening
 
@@ -1333,6 +1630,7 @@ Add:
 * Figma structured integration
 * external defect submission
 * test management sync
+* OIDC/SSO integrated authentication mode
 
 ## Phase 4 — Autonomous Expansion
 
@@ -1345,7 +1643,7 @@ Add:
 
 ---
 
-# 30. Final Functional Requirements
+# 32. Final Functional Requirements
 
 1. The system shall accept inbound requests containing case names, environment, channels, and optional source URLs.
 2. The system shall ingest artifacts from local folders and browser-readable URLs.
@@ -1369,10 +1667,14 @@ Add:
 20. The system shall support deterministic test state management.
 21. The system shall support local shift-left triggers through pre-commit hooks and optional watch mode.
 22. The system shall learn from prior runs, healing outcomes, and reviewer decisions.
+23. The system shall authenticate all inbound requests and attribute all actions to a verified identity.
+24. The system shall enforce role-based access control using defined actor roles and policy profiles.
+25. The system shall isolate execution credentials and browser session secrets from agent context packs and audit logs.
+26. The system shall support workflow resumption after orchestrator failure without duplicating completed stages.
 
 ---
 
-# 31. Final Architecture Position
+# 33. Final Architecture Position
 
 This final design is stronger than the earlier version because it now clearly includes:
 
@@ -1386,6 +1688,9 @@ This final design is stronger than the earlier version because it now clearly in
 * **React-aware execution stability**
 * **forensic-grade evidence schema**
 * **local shift-left git workflow**
+* **identity and access model** with role-based authorization and policy profile governance
+* **committed technology profile** for relational, graph, vector, object storage, LLM, and embedding layers
+* **durable workflow recovery** with idempotent stage execution and retryability classification
 
 It still preserves the strongest parts of the original architecture:
 
@@ -1402,8 +1707,8 @@ It still preserves the strongest parts of the original architecture:
 
 ---
 
-# 32. Short Final Summary
+# 34. Short Final Summary
 
 The final current-stage design is:
 
-**A local-first, artifact-agnostic, multi-agent QA platform with distributed understanding, artifact fusion, semantic state mapping, hybrid Graph-RAG, deterministic and diagnostic execution modes, React-aware state assertions, forensic self-healing with persistent logs, forensic-grade evidence packaging, confidence-based HITL governance, and progressive integration from case folders and browser-readable URLs.**
+**A local-first, artifact-agnostic, multi-agent QA platform with distributed understanding, artifact fusion, semantic state mapping, hybrid Graph-RAG, deterministic and diagnostic execution modes, React-aware state assertions, forensic self-healing with persistent logs, forensic-grade evidence packaging, confidence-based HITL governance, role-based identity and access control, policy profile governance, committed technology stack across relational, graph, vector, and object storage layers, durable workflow recovery, and progressive integration from case folders and browser-readable URLs.**

@@ -772,11 +772,26 @@ Do not index raw binaries.
 Index:
 
 * image summary
-* OCR or vision-derived text if available
+* OCR or vision-derived text
 * extracted UI structure summary
 * visible controls
 * labeled expectations
 * likely page/state summary
+
+### Committed vision extraction pipeline
+
+The platform commits to a **two-stage vision extraction pipeline** (matching the architectural design Section 29 — Platform Technology Profile):
+
+| Stage      | Tool              | Input                             | Use case                                        |
+| ---------- | ----------------- | --------------------------------- | ----------------------------------------------- |
+| Stage 1    | **Claude Vision** (`claude-sonnet-4-6`) | PNG/JPEG wireframe or screenshot | Structural UI description, control labeling, flow inference, state naming, ARIA hints, interaction description |
+| Stage 2    | **Tesseract OCR** (v5+) | Same image | Text extraction from embedded labels, button text, error messages, field labels — any text not reliably described by Claude Vision alone |
+
+The two stages are complementary: Claude Vision produces structural and semantic descriptions that Tesseract cannot; Tesseract produces reliable verbatim text extraction from image regions where Claude may paraphrase or miss small labels.
+
+The combined output of both stages becomes the `extracted_json` in `artifact_parse_result` and the source for chunk text in section 9.6 chunks.
+
+Wireframes or screenshots with no extractable content after both stages should be flagged with `parse_status = "partial"` and `source_quality = "low"`, and should rank lower in retrieval.
 
 ## 9.7 Semantic state maps
 
@@ -919,7 +934,27 @@ Store embedding vectors for:
 * chunk text
 * optionally chunk title + text combined
 
-## 11.3 Filter fields
+## 11.3 Committed embedding model
+
+The platform commits to **`voyage-3-large`** (Voyage AI) as the primary embedding model for all chunk and retrieval-view indexing.
+
+| Property          | Value                                                             |
+| ----------------- | ----------------------------------------------------------------- |
+| Model             | `voyage-3-large`                                                  |
+| Provider          | Voyage AI                                                         |
+| Output dimensions | 1024 (default)                                                    |
+| Max input tokens  | 16,000 tokens per document                                        |
+| Reason selected   | Voyage models are Anthropic-recommended for Claude-paired RAG; voyage-3-large outperforms OpenAI `text-embedding-3-large` on code and technical document retrieval benchmarks; 16k input window handles most QA artifacts without pre-truncation |
+
+### Versioning rule
+
+The embedding model version is stored on every chunk and retrieval view row (`model_version` field). If the embedding model is upgraded, all previously-indexed chunks must be **reindexed** before the new model is used for retrieval — mixing embeddings from different models in the same vector index produces incorrect similarity scores. The Indexing Pipeline must expose a `reindex_all(caseId, new_model_version)` operation to support safe model upgrades.
+
+### Fallback
+
+`text-embedding-3-large` (OpenAI, 3072 dimensions reduced to 1024 via Matryoshka) is the designated fallback if Voyage AI is unavailable during indexing. Chunks indexed with the fallback model must be tagged with `model_version: openai-text-embedding-3-large` and must not be mixed in the same query with `voyage-3-large` chunks.
+
+## 11.4 Filter fields
 
 Must support filters on:
 
@@ -1260,9 +1295,9 @@ Reranking must depend on:
 * evidence freshness
 * artifact version quality
 
-## 16.2 Example score concept
+## 16.2 Score weights and rationale
 
-```text id="mhvbc8"
+```text
 final_score =
   0.22 * semantic_similarity +
   0.12 * keyword_match +
@@ -1274,6 +1309,26 @@ final_score =
   0.06 * recency_boost +
   0.05 * graph_proximity_boost
 ```
+
+### Weight rationale
+
+| Signal                  | Weight | Rationale                                                                                                                                                                                                     |
+| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `semantic_similarity`   | 0.22   | Highest individual weight because semantic match is the most reliable cross-artifact signal. However it cannot be dominant alone because QA artifacts are short and dense — paraphrase ambiguity is high.      |
+| `same_case_boost`       | 0.15   | Second highest. Cross-case pollution is one of the most damaging failure modes in this platform — a login-flow test from a different case could score highly on semantic similarity but be entirely wrong context. This boost hard-biases toward the case boundary. |
+| `keyword_match`         | 0.12   | BM25/keyword match is especially important for exact QA identifiers (requirement IDs, state names, error codes). Vector search often misses these. Keeps the floor high for exact-match retrieval.             |
+| `same_flow_boost`       | 0.10   | Flows are the primary unit of QA reasoning. Content from the same flow is almost always more relevant than same-case but different-flow content.                                                               |
+| `same_state_boost`      | 0.10   | State-specific context (state map, transition, fingerprint) is the most precise level of grounding. Strong boost when available.                                                                               |
+| `source_quality_boost`  | 0.10   | Folder-based artifacts vary significantly in quality (well-structured story vs. poorly-formatted screenshot OCR). This weight ensures a high-quality story chunk beats a low-quality screenshot OCR chunk even if the screenshot scores better semantically. |
+| `approval_status_boost` | 0.10   | Approved assets should dominate over drafts in most retrieval contexts. In regression mode this boost is effectively increased by applying it multiplicatively rather than additively.                          |
+| `recency_boost`         | 0.06   | Lower because older approved content is often better than newer drafts. Only a mild tiebreaker, not a dominant factor.                                                                                         |
+| `graph_proximity_boost` | 0.05   | Graph proximity (1 hop vs. 2 hops from seed) is the weakest signal — it is structural, not semantic. A distant but highly relevant chunk should beat a proximate but low-relevance chunk.                    |
+
+### Tuning guidance
+
+These weights are starting values calibrated for a document-centric QA RAG system. They should be treated as **configurable per agent mode** and tuned empirically once the platform has 20+ real retrieval logs to analyze. The weight most likely to need mode-specific adjustment is `approval_status_boost` — in diagnostic mode it should be reduced to 0.05 so exploratory and draft content can surface.
+
+Weights should sum to 1.0. If a signal is unavailable (e.g. no graph expansion for a particular chunk), redistribute its weight proportionally across the remaining signals rather than dropping it to zero, to avoid systematic underscoring of un-linked chunks.
 
 ## 16.3 Cross-encoder recommendation
 
@@ -1380,11 +1435,76 @@ Optional execution-mode-specific constraints:
 * mismatch unresolved
 * healing unstable
 
-This remains one of the best anti-hallucination design choices in the whole spec. 
+This remains one of the best anti-hallucination design choices in the whole spec.
 
 ---
 
-## 17.2 Example context pack
+## 17.2 Token budget management
+
+The context pack must fit within the agent's LLM context window. The platform uses **Claude Sonnet 4.6** with a 200k-token context window, but the usable context budget for RAG content is a fraction of that — the system prompt, agent instructions, and output space must be reserved.
+
+### Budget envelope
+
+| Allocation                         | Token budget  | Notes                                                                       |
+| ---------------------------------- | ------------- | --------------------------------------------------------------------------- |
+| System prompt + agent instructions | ~4,000        | Fixed per agent type                                                        |
+| Output reservation                 | ~8,000        | Minimum output space reserved for agent-generated content                   |
+| **RAG context pack (total)**       | **~18,000**   | Maximum RAG content per agent invocation at current stage                   |
+| Hard ceiling (full window)         | 200,000       | Claude Sonnet 4.6 — never approach this limit in production invocations     |
+
+The 18,000-token RAG budget is deliberately conservative. It leaves overhead for edge cases and prevents latency spikes from near-limit context processing.
+
+### Per-section budget allocation (within 18,000 tokens)
+
+| Context pack section      | Target budget | Overflow rule                                                         |
+| ------------------------- | ------------- | --------------------------------------------------------------------- |
+| Facts (structured summary)| 800           | Fixed — truncate only if the fact set itself is abnormally large      |
+| Requirements (top chunks) | 4,000         | If exceeded, drop lowest-ranked chunks first                          |
+| State refs                | 2,000         | If exceeded, keep states directly referenced in query; drop periphery |
+| Reusable assets           | 3,000         | If exceeded, keep approved assets; drop drafts                        |
+| Related history           | 3,000         | If exceeded, keep most recent and highest-confidence entries          |
+| Mismatch warnings         | 1,500         | Never truncate blocking-severity warnings; truncate low-severity last |
+| Evidence bundle refs      | 2,000         | Triage/healing only; absent for other agent types                     |
+| Gaps / conflicts          | 700           | Fixed — summarize if too long                                         |
+| **Total**                 | **17,000**    | 1,000 token buffer retained                                           |
+
+### Token counting approach
+
+Token counts must be measured **before** assembling the final context pack, not estimated. The Context Pack Builder must:
+
+1. Tokenize each candidate section using the same tokenizer as the target model (Claude uses the same tokenizer family as GPT — `tiktoken cl100k_base` is a close enough approximation for budget estimation)
+2. Accumulate section totals as candidates are added
+3. Stop adding items to a section once its budget is reached
+4. Log the actual token count per section in the `context_pack_log.size_metrics_json` field
+
+### Overflow handling
+
+When total RAG content would exceed 18,000 tokens:
+
+1. Apply section budget caps first (drop lowest-ranked items per section)
+2. If still over budget after applying all caps, reduce the history section first
+3. Then reduce the reusable assets section
+4. **Never** truncate mid-chunk — drop whole chunks, not partial text
+5. Log a `context_budget_exceeded` warning in the retrieval audit log with the original item counts and final item counts
+6. Never silently discard a blocking mismatch warning or a current-run evidence ref — these must always fit regardless of budget pressure
+
+### Agent-specific budget overrides
+
+| Agent type              | RAG budget  | Notes                                                        |
+| ----------------------- | ----------- | ------------------------------------------------------------ |
+| Case Understanding      | 14,000      | Narrower — early in pipeline, fewer history artifacts        |
+| Requirement Mapping     | 14,000      | Same rationale                                               |
+| Risk & Strategy         | 18,000      | Full budget — needs broad multi-source context               |
+| Test Authoring          | 18,000      | Full budget — reuse assets + requirements + state            |
+| Failure Triage          | 20,000      | Expanded — evidence-heavy; reduce output reservation to 6k  |
+| Healing                 | 16,000      | Focused forensic context — quality over breadth              |
+| Playbook Recommendation | 14,000      | Narrower — diagnostic artifacts only                         |
+| Defect Drafting         | 12,000      | Short focused context — triage result + requirements + evidence |
+| Learning                | 22,000      | Widest — pattern analysis needs broad history; reduce output to 4k |
+
+---
+
+## 17.3 Example context pack
 
 ```json id="wkltlb"
 {
