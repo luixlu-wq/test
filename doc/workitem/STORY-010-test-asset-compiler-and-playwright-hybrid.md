@@ -49,6 +49,9 @@ Implement scenario-to-asset compilation and Playwright hybrid framework integrat
 - `TC-S8-002` — Metadata header fields present and correct in compiled output
 - `TC-S8-003` — Script with `waitForTimeout` rejected with `UNSAFE_WAIT_PATTERN`
 - `TC-S8-004` — Selector profile applied: ARIA selector prioritised over CSS when `aria_first` profile active
+- `TCN-S8-001` — Compiler rejects scenario missing required step fields with structured diagnostics
+- `TCN-S8-002` — Script containing forbidden regression patterns fails policy lint gate
+- `TCE-S8-001` — Very long scenario compiles with bounded chunked sections and stable metadata indexing
 
 ## Definition of Done
 
@@ -57,7 +60,7 @@ Implement scenario-to-asset compilation and Playwright hybrid framework integrat
 - [ ] Metadata header embedded in every compiled script
 - [ ] Unsafe wait pattern detection in place
 - [ ] Selector profile mapping applied from active profile
-- [ ] `TC-S8-001` through `TC-S8-004` pass; LLM calls stubbed in `ci` profile
+- [ ] `TC-S8-001` through `TC-S8-004`, `TCN-S8-001`, `TCN-S8-002`, `TCE-S8-001` pass; LLM calls stubbed in `ci` profile
 - [ ] PR reviewed and merged; CI green
 
 ## Owner

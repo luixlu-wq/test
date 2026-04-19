@@ -26,7 +26,7 @@ Source plan: `api/doc/impl-plan/detailed-implementation-plan.md`
 ## Suggested Sprint Cut (First 2 Weeks)
 
 - Sprint 1:
-  - `STORY-001-contract-and-enum-lock.md`
+  - `STORY-001-contract-and-enum-lock.md` (includes `TASK-015-tdr-registry-and-decision-records.md`)
   - `STORY-002-request-trigger-orchestration.md`
   - `STORY-003-policy-and-audit-foundation.md`
   - `STORY-004-persistence-core-schema.md`

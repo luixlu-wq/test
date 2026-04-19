@@ -51,13 +51,15 @@ Create initial migration pack for request/workflow/run/evidence metadata entitie
 ## Test Cases
 
 - `TC-S2-001` — Full up/down migration cycle passes on both backends
+- `TCN-S2-002` — Simulated connection loss during migration transaction recovers without partial schema state
+- `TCE-S2-001` — Concurrent migration smoke invocations keep deterministic schema head state
 
 ## Definition of Done
 
 - [ ] Four migration files committed; each has a working `downgrade()`
 - [ ] All FK indexes and composite indexes created in migrations
 - [ ] Smoke test harness in `tests/integration/test_migrations.py`
-- [ ] `TC-S2-001` passes in CI Stage 2 (PostgreSQL ephemeral)
+- [ ] `TC-S2-001`, `TCN-S2-002`, `TCE-S2-001` pass in CI Stage 2 (PostgreSQL ephemeral)
 - [ ] `alembic current` shows `head` after `upgrade head` in integration environment
 
 ## Owner

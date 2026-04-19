@@ -48,6 +48,8 @@ Implement read-only browser URL ingestion operation with snapshot and cache meta
 ## Test Cases
 
 - `TC-S3-003` — Snapshot capture returns normalized refs; second call with same params returns `cache_hit: true`
+- `TCN-S3-002` — Unauthorized/session-expired URL returns policy-safe failure without leaking sensitive response data
+- `TCE-S3-002` — Repeated requests at cache boundary produce deterministic cache-key behavior and no duplicate heavy captures
 
 ## Definition of Done
 
@@ -56,7 +58,7 @@ Implement read-only browser URL ingestion operation with snapshot and cache meta
 - [ ] `auditDetail` includes `cache_hit`, `url`, `viewport`, `timestamp_bucket`
 - [ ] `READ_ONLY_VIOLATION` error returned if mutation operation detected
 - [ ] In `ci` profile: Playwright stubbed; cache behavior tested with mock Redis
-- [ ] `TC-S3-003` passes in `integration` profile
+- [ ] `TC-S3-003`, `TCN-S3-002`, `TCE-S3-002` pass in `integration` profile
 
 ## Owner
 

@@ -51,6 +51,9 @@ Build the artifact ingestion/fusion/normalization pipeline and produce structure
 - `TC-S4-002` — Conflicting artifacts produce `conflict` warnings; missing artifact produces `gap` warning
 - `TC-S4-003` — Chunks generated with required metadata; retrievable by `case_id`
 - `TC-S4-004` — Ungrounded field in understanding produces `ungrounded` ingestion warning
+- `TCN-S4-001` — OCR empty-result input produces explicit low-quality warning without fabricated extraction
+- `TCN-S4-002` — Conflicting artifact versions create explicit conflict records with source refs
+- `TCE-S4-001` — Duplicate artifact ingestion is idempotent and does not duplicate entities
 
 ## Definition of Done
 
@@ -59,7 +62,7 @@ Build the artifact ingestion/fusion/normalization pipeline and produce structure
 - [ ] `ingestion_warning` rows created for conflicts, gaps, and ungrounded fields
 - [ ] Chunks indexed in vector store with required metadata fields
 - [ ] Graph nodes written with MERGE semantics (no duplicate nodes on re-ingestion)
-- [ ] `TC-S4-001` through `TC-S4-004` pass in `integration` profile
+- [ ] `TC-S4-001` through `TC-S4-004`, `TCN-S4-001`, `TCN-S4-002`, `TCE-S4-001` pass in `integration` profile
 - [ ] LLM calls stubbed in `ci` profile (`AI_QA_LLM_STUB_MODE=true`)
 - [ ] PR reviewed and merged; CI green
 

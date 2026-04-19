@@ -142,6 +142,30 @@ AI_QA_SKIP_EXTERNAL_CALLS=true     # blocks any real outbound network in CI
 
 CI must never reach external APIs except in explicitly tagged integration test jobs. `AI_QA_LLM_STUB_MODE=true` and `AI_QA_SKIP_EXTERNAL_CALLS=true` are mandatory for all test types except the designated integration test job.
 
+### 2.7 Failure-injection setup for negative testing
+
+Negative-path tests must use deterministic fault injection instead of ad-hoc timing or random process kills.
+
+Recommended test-only flags:
+
+```bash
+AI_QA_TEST_FAULT_INJECTION=true
+AI_QA_TEST_FAILPOINTS=none
+```
+
+`AI_QA_TEST_FAILPOINTS` should support named failpoints consumed by services/repositories, for example:
+
+- `db.commit.fail_once`
+- `blob.write.timeout`
+- `worker.execute.crash_after_step_2`
+- `event.publish.drop_once`
+
+Rules:
+
+- Failpoints are disabled by default and unavailable in production runtime.
+- Tests assert both failure behavior and post-recovery consistency.
+- Every negative test using failpoints must state the failpoint name in test metadata.
+
 ## 3. Global Test Data Strategy
 
 ### 3.1 Canonical synthetic project datasets
@@ -171,6 +195,43 @@ Create and version these under `api/tests/data/`:
 - No production secrets.
 - Deterministic fixture seeds for repeatable tests.
 - Every test data artifact has stable IDs and source refs.
+
+### 3.3 Negative and edge-condition datasets
+
+Add and maintain explicit negative/edge fixture sets:
+
+1. `contracts/invalid/`:
+- missing required fields
+- invalid enum values
+- malformed timestamps
+- unknown/extra critical fields
+2. `projects/*/conflict-variants/`:
+- contradictory requirement vs wireframe
+- stale artifact version vs latest version
+- duplicated source refs
+3. `projects/*/runtime-failure-variants/`:
+- auth/session expiration
+- downstream HTTP 5xx and timeout
+- partial evidence write failures
+4. `projects/*/size-and-scale-variants/`:
+- very large artifacts
+- very large context packs
+- high cardinality run/evidence history
+
+### 3.4 Edge-capacity baselines (for deterministic assertions)
+
+Use explicit, versioned baseline limits for edge tests so pass/fail criteria are objective:
+
+- artifact ingest soft limit: 25 MB per artifact in local/integration tests
+- context pack token budget:
+  - regression mode: 12k max
+  - diagnostic mode: 20k max
+- retrieval latency budget on integration profile:
+  - p95 <= 1200 ms for top-k queries on canonical corpus
+- workflow idempotency replay:
+  - 100 duplicate trigger deliveries produce one workflow branch only
+
+When limits change, update this section and corresponding assertions in the same PR.
 
 ## 4. Global Assertion Standards
 
@@ -205,6 +266,30 @@ All phases must follow these assertion standards.
 - Secrets masked in logs and externalized outputs.
 - Sensitive fields are not embedded in prompts/context packs.
 - Policy violations fail closed.
+
+### 4.6 Negative and edge-condition assertions
+
+- Invalid contracts fail fast with structured errors, never silent coercion.
+- Timeouts, retries, and backoff behavior are deterministic and bounded.
+- Duplicate, replayed, or out-of-order events do not corrupt workflow state.
+- Partial failures preserve integrity (no orphan records, no half-published artifacts).
+- Unsupported or low-quality source inputs produce explicit warnings, not fabricated output.
+- Cross-store propagation failures are recoverable via outbox/saga mechanisms.
+- Scale edges (large corpus, large context, high run volume) degrade gracefully.
+- All negative paths still emit auditable logs with correlation IDs.
+
+### 4.7 Error contract assertions for negative paths
+
+Negative tests must assert machine-checkable error contracts, not only textual errors:
+
+- error payload includes:
+  - stable `errorCode`
+  - human-readable `message`
+  - `retryable` boolean
+  - `correlationId`
+- no stack traces or secrets in client-facing payloads
+- identical invalid input produces the same `errorCode`
+- policy failures use policy-specific codes (for example `POLICY_DENIED`, not generic `VALIDATION_ERROR`)
 
 ## 5. Phase-by-Phase Implementation Steps
 
@@ -256,6 +341,9 @@ All phases must follow these assertion standards.
 - `TC-S0-001`: valid MCP request envelope passes schema.
 - `TC-S0-002`: invalid `execution_mode` rejected.
 - `TC-S0-003`: agent output missing `status` rejected.
+- `TCN-S0-001` (negative): request with malformed timestamp is rejected with schema error.
+- `TCN-S0-002` (negative): unknown critical envelope field is rejected when strict mode is enabled.
+- `TCE-S0-001` (edge): same contract fixture validated repeatedly yields deterministic result (no flaky validator behavior).
 
 ### Test data
 
@@ -298,6 +386,9 @@ All phases must follow these assertion standards.
 - `TC-S1-002`: stage retry is idempotent (no duplicate side-effects).
 - `TC-S1-003`: policy requires approval for restricted action.
 - `TC-S1-004`: audit record created for each stage transition.
+- `TCN-S1-001` (negative): out-of-order stage event is rejected and logged as invalid transition.
+- `TCN-S1-002` (negative): stale approval response (already-resolved task) is rejected with no state mutation.
+- `TCE-S1-001` (edge): repeated webhook delivery (same event id) does not create duplicate workflow branches.
 
 ### Test data
 
@@ -342,6 +433,9 @@ All phases must follow these assertion standards.
 - `TC-S2-002`: request + case + run links persist and query correctly.
 - `TC-S2-003`: rollback on partial write keeps integrity.
 - `TC-S2-004`: retention policy marks old heavy artifacts for tiering.
+- `TCN-S2-001` (negative): duplicate unique key insert race fails cleanly with no partial dependent rows.
+- `TCN-S2-002` (negative): simulated DB connection loss during transaction triggers rollback and retry-safe behavior.
+- `TCE-S2-001` (edge): concurrent writes to same request/run maintain referential integrity and deterministic final state.
 
 ### Test data
 
@@ -389,6 +483,9 @@ All phases must follow these assertion standards.
 - `TC-S3-002`: parser extracts headings/acceptance criteria from story markdown.
 - `TC-S3-003`: browser reader returns normalized snapshot + metadata.
 - `TC-S3-004`: trigger MCP emits valid trigger envelope.
+- `TCN-S3-001` (negative): unsupported document MIME type returns structured `UNSUPPORTED_FORMAT` error.
+- `TCN-S3-002` (negative): browser reader unauthorized/session-expired URL returns policy-safe failure without data leakage.
+- `TCE-S3-001` (edge): very large document is chunked/truncated according to configured limits and logs overflow warning.
 
 ### Test data
 
@@ -432,6 +529,9 @@ All phases must follow these assertion standards.
 - `TC-S4-002`: fused understanding identifies missing acceptance coverage.
 - `TC-S4-003`: chunk records include provenance refs and artifact version.
 - `TC-S4-004`: ingestion issues reported but workflow remains resumable.
+- `TCN-S4-001` (negative): OCR returns empty text and pipeline records low-quality capture warning instead of hallucinated content.
+- `TCN-S4-002` (negative): conflicting artifact versions are surfaced as explicit conflict records.
+- `TCE-S4-001` (edge): duplicate artifact ingestion is idempotent and does not duplicate core entities.
 
 ### Test data
 
@@ -476,6 +576,9 @@ All phases must follow these assertion standards.
 - `TC-S5-002`: mismatch flagged when wireframe requires captcha but story does not.
 - `TC-S5-003`: blocking mismatch prevents execution stage.
 - `TC-S5-004`: mismatch summary available for retrieval context.
+- `TCN-S5-001` (negative): cyclic or self-loop transition errors are rejected by validator.
+- `TCN-S5-002` (negative): mismatch with missing source refs is rejected as invalid output contract.
+- `TCE-S5-001` (edge): high-volume mismatch set still preserves deterministic severity ordering.
 
 ### Test data
 
@@ -520,6 +623,9 @@ All phases must follow these assertion standards.
 - `TC-S6-002`: filter by `caseId` excludes other project noise.
 - `TC-S6-003`: graph expansion adds linked test/evidence entities.
 - `TC-S6-004`: regression mode context pack excludes non-approved diagnostic artifacts.
+- `TCN-S6-001` (negative): search request against non-ready index returns retryable `INDEX_NOT_READY`.
+- `TCN-S6-002` (negative): invalid filter field is rejected (no silent fallback to broad search).
+- `TCE-S6-001` (edge): oversized retrieval result set is truncated deterministically with overflow metadata in logs.
 
 ### Test data
 
@@ -562,6 +668,9 @@ All phases must follow these assertion standards.
 - `TC-S7-002`: low confidence + conflict forces review-required status.
 - `TC-S7-003`: prompt metadata persisted with generated assets.
 - `TC-S7-004`: regression mode blocks unsupported exploratory suggestion.
+- `TCN-S7-001` (negative): model unavailable error surfaces explicitly with no silent model-provider fallback.
+- `TCN-S7-002` (negative): output with fabricated refs fails grounding validation.
+- `TCE-S7-001` (edge): repeated retries for same invalid output stop at configured cap and escalate to review.
 
 ### Test data
 
@@ -606,6 +715,9 @@ All phases must follow these assertion standards.
 - `TC-S8-002`: generated script includes source and state refs metadata.
 - `TC-S8-003`: semantic assertions compile to runtime-level assertions.
 - `TC-S8-004`: selector profile review promotes approved profile only.
+- `TCN-S8-001` (negative): compiler rejects scenario with missing required step fields and returns structured diagnostics.
+- `TCN-S8-002` (negative): generated script containing forbidden patterns (hard sleep in regression profile) fails policy lint gate.
+- `TCE-S8-001` (edge): extremely long scenario compiles with bounded chunked sections and stable metadata indexing.
 
 ### Test data
 
@@ -649,6 +761,9 @@ All phases must follow these assertion standards.
 - `TC-S9-002`: failure captures mandatory evidence set.
 - `TC-S9-003`: cleanup hook runs even when test fails.
 - `TC-S9-004`: evidence bundle generated for triage consumption.
+- `TCN-S9-001` (negative): worker crash mid-run transitions run to recoverable failed state with partial evidence markers.
+- `TCN-S9-002` (negative): evidence storage write failure triggers retry and preserves run-step status consistency.
+- `TCE-S9-001` (edge): rerun on same run id is blocked or idempotently resumed based on policy (no duplicate run-step fanout).
 
 ### Test data
 
@@ -691,6 +806,9 @@ All phases must follow these assertion standards.
 - `TC-S10-002`: test script issue classification for locator break.
 - `TC-S10-003`: confidence below threshold creates review task.
 - `TC-S10-004`: approved review transitions draft to publish-ready internal state.
+- `TCN-S10-001` (negative): contradictory evidence signals force `needs_human_review` rather than auto defect path.
+- `TCN-S10-002` (negative): malformed defect packet (missing expected/actual) is rejected by defect contract validator.
+- `TCE-S10-001` (edge): duplicate similar-defect matches are deduplicated and ranked deterministically.
 
 ### Test data
 
@@ -732,6 +850,9 @@ All phases must follow these assertion standards.
 - `TC-S11-002`: unapproved healing is excluded from regression execution.
 - `TC-S11-003`: approved playbook improves run stability versus baseline.
 - `TC-S11-004`: healing history retrievable by scenario and state.
+- `TCN-S11-001` (negative): low-confidence healing proposal cannot be auto-promoted under any regression policy profile.
+- `TCN-S11-002` (negative): stale fingerprint-version reference fails promotion validation.
+- `TCE-S11-001` (edge): multiple competing healing candidates resolve by deterministic rank and approval state.
 
 ### Test data
 
@@ -777,6 +898,9 @@ All phases must follow these assertion standards.
 - `TC-S12-002`: SLO breach emits alert signal/event.
 - `TC-S12-003`: retention job tiers old traces but keeps metadata.
 - `TC-S12-004`: release blocked when critical contract tests fail.
+- `TCN-S12-001` (negative): retention policy misconfiguration attempting protected metadata deletion is blocked and audited.
+- `TCN-S12-002` (negative): CI gate bypass attempt (missing required suite) fails pipeline.
+- `TCE-S12-001` (edge): high-volume artifact cleanup run remains within timeout budget and preserves integrity guarantees.
 
 ### Test data
 
@@ -846,6 +970,16 @@ These estimates assume a single experienced full-stack engineer. Add 20% buffer 
 - load and latency
 - retention correctness
 
+6. `tests/negative`
+- contract rejection paths
+- policy-blocked actions
+- retry/timeout exhaustion behavior
+
+7. `tests/edge`
+- large payload and large context behavior
+- concurrency and duplicate-event handling
+- partial failure and recovery flows
+
 ## 8. CI/CD Pipeline
 
 ### 8.1 Pipeline structure
@@ -876,6 +1010,7 @@ The CI/CD pipeline has four stages executed in order. Stages are independent wit
 │   regression mode enforcement tests                         │
 │   context pack bounds tests                                 │
 │   evidence traceability completeness assertions             │
+│   negative/edge reliability suite (failpoints + limits)     │
 └───────────────────────┬─────────────────────────────────────┘
                         │ pass
 ┌───────────────────────▼─────────────────────────────────────┐
@@ -921,6 +1056,7 @@ All of the following must be green before a PR can merge to `main`:
 6. Secret masking checks pass — no credential patterns in logs or output fixtures.
 7. Policy boundary tests pass — policy violations fail closed, not open.
 8. Code coverage does not drop below 70% on modified files.
+9. Negative and edge suites pass with failpoints enabled where applicable.
 
 ### 8.5 Release checklist (before Stage 4 deploy)
 
@@ -963,4 +1099,3 @@ Planned sprint demo artifacts:
 1. one successful request flow from intake to indexed understanding
 2. one mismatched case showing execution block + review signal
 3. one traceable audit trail for the full flow
-

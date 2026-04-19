@@ -51,15 +51,19 @@ Implement the minimum MCP tool surface needed for current-stage ingestion and tr
 - `TC-S3-002` — Document Parser MCP extracts headings and criteria from markdown fixture
 - `TC-S3-003` — Browser Reader returns snapshot with cache key; second call with same params hits cache
 - `TC-S3-004` — Trigger MCP validates payload and enqueues workflow kickoff event to Redis Streams
+- `TCN-S3-001` — Unsupported document MIME type returns structured `UNSUPPORTED_FORMAT`/`UNSUPPORTED_CONTENT_TYPE` error
+- `TCN-S3-002` — Browser reader unauthorized/session-expired URL returns policy-safe failure with no data leakage
+- `TCE-S3-001` — Very large document is chunked/truncated to configured bounds with overflow warning
 
 ## Definition of Done
 
 - [ ] All four MCPs implement the shared envelope middleware
 - [ ] Policy guard fires before any MCP operation; `POLICY_VIOLATION` tested
 - [ ] Timeout enforcement in place for all MCPs (timeout values from §4.8)
-- [ ] `TC-S3-001` through `TC-S3-004` pass in `integration` profile
+- [ ] `TC-S3-001` through `TC-S3-004`, `TCN-S3-001`, `TCN-S3-002`, `TCE-S3-001` pass in `integration` profile
 - [ ] Contract tests pass for all MCPs in `ci` profile (stubs for external services)
 - [ ] No credential storage in MCP code; credentials resolved via auth profile mechanism
+- [ ] Negative-path MCP errors include `errorCode`, `message`, `retryable`, `correlationId`
 - [ ] PR reviewed and merged; CI green
 
 ## Owner

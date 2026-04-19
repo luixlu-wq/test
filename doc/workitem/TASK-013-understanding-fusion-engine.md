@@ -49,6 +49,8 @@ Implement artifact fusion logic that connects parsed sources into a coherent cas
 
 - `TC-S4-002` — Conflict warning emitted for contradictory source values
 - `TC-S4-004` — Ungrounded field produces `ungrounded` warning and `fusion_confidence = 0.0`
+- `TCN-S4-001` — Empty OCR/visual extraction result is surfaced as low-quality input warning (no fabricated understanding content)
+- `TCE-S4-001` — Re-ingesting the same artifact set is idempotent with no duplicate `CaseUnderstanding` entities
 
 ## Definition of Done
 
@@ -57,7 +59,7 @@ Implement artifact fusion logic that connects parsed sources into a coherent cas
 - [ ] `ingestion_warning` rows created for conflict, gap, ungrounded cases
 - [ ] `CaseUnderstanding` written to PostgreSQL and Neo4j graph
 - [ ] LLM calls stubbed in `ci` profile
-- [ ] `TC-S4-002` and `TC-S4-004` pass in `integration` profile
+- [ ] `TC-S4-002`, `TC-S4-004`, `TCN-S4-001`, `TCE-S4-001` pass in `integration` profile
 
 ## Owner
 

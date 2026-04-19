@@ -1,25 +1,4 @@
-I agree with most of Gemini’s comments. The strongest updates are:
-
-* make **Hybrid Graph-RAG** the explicit standard, not just “hybrid retrieval”
-* make **multi-hop reasoning over the Semantic State Map** more explicit as the main reason Graph-RAG is necessary for QA
-* make **Context Pack assembly** a first-class anti-hallucination layer
-* make **reranking** mandatory and explicit, especially for messy folder-based artifacts and multiple artifact versions
-* strengthen the **forensic retrieval path** for Healing by explicitly retrieving prior fingerprints, prior healing logs, and prior approved healing outcomes
-* make **diagnostic vs regression retrieval policy** sharper and more operational
-* strengthen **Mismatch RAG** as a safety net during new ingestion and understanding
-* emphasize the **Foundational Three** implementation priorities:
-
-  1. ingestion pipeline
-  2. state-map retriever
-  3. evidence packager
-
-I did **not** change the overall direction, because your uploaded Part 7 was already strong on Graph-RAG, semantic state retrieval, graph expansion, reranking, context packs, and auditability. The comments mostly sharpen the implementation priorities and make the retrieval behavior more explicitly production-grade. 
-
-Below is the **rewritten Part 7 — RAG Implementation Design**, kept full-length and aligned to the final architecture.
-
----
-
-# Part 7 — RAG Implementation Design
+﻿# Part 7 â€” RAG Implementation Design
 
 ## AI QA Platform
 
@@ -29,7 +8,7 @@ Below is the **rewritten Part 7 — RAG Implementation Design**, kept full-lengt
 
 This section defines the **RAG implementation subsystem** for your AI-powered QA platform.
 
-This is not “document search plus LLM.”
+This is not â€œdocument search plus LLM.â€
 
 This is a **multi-layered intelligence retrieval system** designed for software quality engineering, where the cost of wrong retrieval is high.
 
@@ -111,7 +90,7 @@ This is the main architectural win in the RAG design.
 
 # 2. Purpose of RAG in this platform
 
-RAG is not just “search documents and paste them into a prompt.”
+RAG is not just â€œsearch documents and paste them into a prompt.â€
 
 In this QA platform, RAG must do **eight** jobs.
 
@@ -189,7 +168,7 @@ The system must retrieve:
 * prior triage patterns
 * similar defect drafts
 
-## 2.8 Reconstruct the application’s mental model
+## 2.8 Reconstruct the applicationâ€™s mental model
 
 This is the most important conceptual point from the review.
 
@@ -200,7 +179,7 @@ RAG must help the agent reconstruct:
 * what transition should happen next
 * what evidence proves success or failure
 
-That is a much stronger goal than “find related text.”
+That is a much stronger goal than â€œfind related text.â€
 
 ---
 
@@ -365,7 +344,7 @@ Output:
 * expected-outcome summaries
 * fingerprint summaries
 
-These summaries let agents retrieve the application’s logic model, not just descriptive text.
+These summaries let agents retrieve the applicationâ€™s logic model, not just descriptive text.
 
 ---
 
@@ -386,7 +365,7 @@ Output:
 * retrieval views for mismatches
 * conflict metadata for context packs
 
-This is the system’s main safety net against contradiction debt.
+This is the systemâ€™s main safety net against contradiction debt.
 
 ---
 
@@ -495,7 +474,7 @@ This is the entry point, not the whole retrieval story.
 Expands retrieved candidates using graph relationships.
 
 Example:
-retrieved a requirement chunk → expand to:
+retrieved a requirement chunk â†’ expand to:
 
 * linked flow
 * linked page
@@ -663,7 +642,7 @@ The index should distinguish content categories.
 * recurring failure patterns
 * accepted/rejected playbook patterns
 
-This broader categorization better reflects the final architecture’s forensic side.
+This broader categorization better reflects the final architectureâ€™s forensic side.
 
 ---
 
@@ -780,12 +759,12 @@ Index:
 
 ### Committed vision extraction pipeline
 
-The platform commits to a **two-stage vision extraction pipeline** (matching the architectural design Section 29 — Platform Technology Profile):
+The platform commits to a **two-stage vision extraction pipeline** (matching the architectural design Section 29 â€” Platform Technology Profile):
 
 | Stage      | Tool              | Input                             | Use case                                        |
 | ---------- | ----------------- | --------------------------------- | ----------------------------------------------- |
 | Stage 1    | **Claude Vision** (`claude-sonnet-4-6`) | PNG/JPEG wireframe or screenshot | Structural UI description, control labeling, flow inference, state naming, ARIA hints, interaction description |
-| Stage 2    | **Tesseract OCR** (v5+) | Same image | Text extraction from embedded labels, button text, error messages, field labels — any text not reliably described by Claude Vision alone |
+| Stage 2    | **Tesseract OCR** (v5+) | Same image | Text extraction from embedded labels, button text, error messages, field labels â€” any text not reliably described by Claude Vision alone |
 
 The two stages are complementary: Claude Vision produces structural and semantic descriptions that Tesseract cannot; Tesseract produces reliable verbatim text extraction from image regions where Claude may paraphrase or miss small labels.
 
@@ -877,7 +856,7 @@ Every chunk should carry rich metadata.
   "caseId": "CASE-101",
   "artifactType": "story",
   "chunkType": "acceptance_criteria",
-  "title": "Acceptance Criteria — Valid Login",
+  "title": "Acceptance Criteria â€” Valid Login",
   "text": "User can sign in with valid credentials",
   "orderIndex": 3,
   "metadata": {}
@@ -948,7 +927,7 @@ The platform commits to **`voyage-3-large`** (Voyage AI) as the primary embeddin
 
 ### Versioning rule
 
-The embedding model version is stored on every chunk and retrieval view row (`model_version` field). If the embedding model is upgraded, all previously-indexed chunks must be **reindexed** before the new model is used for retrieval — mixing embeddings from different models in the same vector index produces incorrect similarity scores. The Indexing Pipeline must expose a `reindex_all(caseId, new_model_version)` operation to support safe model upgrades.
+The embedding model version is stored on every chunk and retrieval view row (`model_version` field). If the embedding model is upgraded, all previously-indexed chunks must be **reindexed** before the new model is used for retrieval â€” mixing embeddings from different models in the same vector index produces incorrect similarity scores. The Indexing Pipeline must expose a `reindex_all(caseId, new_model_version)` operation to support safe model upgrades.
 
 ### Fallback
 
@@ -999,7 +978,7 @@ Focus:
 
 ### Important refinement
 
-Gemini’s comment is right: **Mismatch RAG** should feed intake/understanding to prevent contradiction debt from accumulating.
+Geminiâ€™s comment is right: **Mismatch RAG** should feed intake/understanding to prevent contradiction debt from accumulating.
 
 ---
 
@@ -1314,25 +1293,25 @@ final_score =
 
 | Signal                  | Weight | Rationale                                                                                                                                                                                                     |
 | ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `semantic_similarity`   | 0.22   | Highest individual weight because semantic match is the most reliable cross-artifact signal. However it cannot be dominant alone because QA artifacts are short and dense — paraphrase ambiguity is high.      |
-| `same_case_boost`       | 0.15   | Second highest. Cross-case pollution is one of the most damaging failure modes in this platform — a login-flow test from a different case could score highly on semantic similarity but be entirely wrong context. This boost hard-biases toward the case boundary. |
+| `semantic_similarity`   | 0.22   | Highest individual weight because semantic match is the most reliable cross-artifact signal. However it cannot be dominant alone because QA artifacts are short and dense â€” paraphrase ambiguity is high.      |
+| `same_case_boost`       | 0.15   | Second highest. Cross-case pollution is one of the most damaging failure modes in this platform â€” a login-flow test from a different case could score highly on semantic similarity but be entirely wrong context. This boost hard-biases toward the case boundary. |
 | `keyword_match`         | 0.12   | BM25/keyword match is especially important for exact QA identifiers (requirement IDs, state names, error codes). Vector search often misses these. Keeps the floor high for exact-match retrieval.             |
 | `same_flow_boost`       | 0.10   | Flows are the primary unit of QA reasoning. Content from the same flow is almost always more relevant than same-case but different-flow content.                                                               |
 | `same_state_boost`      | 0.10   | State-specific context (state map, transition, fingerprint) is the most precise level of grounding. Strong boost when available.                                                                               |
 | `source_quality_boost`  | 0.10   | Folder-based artifacts vary significantly in quality (well-structured story vs. poorly-formatted screenshot OCR). This weight ensures a high-quality story chunk beats a low-quality screenshot OCR chunk even if the screenshot scores better semantically. |
 | `approval_status_boost` | 0.10   | Approved assets should dominate over drafts in most retrieval contexts. In regression mode this boost is effectively increased by applying it multiplicatively rather than additively.                          |
 | `recency_boost`         | 0.06   | Lower because older approved content is often better than newer drafts. Only a mild tiebreaker, not a dominant factor.                                                                                         |
-| `graph_proximity_boost` | 0.05   | Graph proximity (1 hop vs. 2 hops from seed) is the weakest signal — it is structural, not semantic. A distant but highly relevant chunk should beat a proximate but low-relevance chunk.                    |
+| `graph_proximity_boost` | 0.05   | Graph proximity (1 hop vs. 2 hops from seed) is the weakest signal â€” it is structural, not semantic. A distant but highly relevant chunk should beat a proximate but low-relevance chunk.                    |
 
 ### Tuning guidance
 
-These weights are starting values calibrated for a document-centric QA RAG system. They should be treated as **configurable per agent mode** and tuned empirically once the platform has 20+ real retrieval logs to analyze. The weight most likely to need mode-specific adjustment is `approval_status_boost` — in diagnostic mode it should be reduced to 0.05 so exploratory and draft content can surface.
+These weights are starting values calibrated for a document-centric QA RAG system. They should be treated as **configurable per agent mode** and tuned empirically once the platform has 20+ real retrieval logs to analyze. The weight most likely to need mode-specific adjustment is `approval_status_boost` â€” in diagnostic mode it should be reduced to 0.05 so exploratory and draft content can surface.
 
 Weights should sum to 1.0. If a signal is unavailable (e.g. no graph expansion for a particular chunk), redistribute its weight proportionally across the remaining signals rather than dropping it to zero, to avoid systematic underscoring of un-linked chunks.
 
 ## 16.3 Cross-encoder recommendation
 
-Gemini’s comment is correct: a dedicated reranker such as a **cross-encoder** is a strong fit here, especially for:
+Geminiâ€™s comment is correct: a dedicated reranker such as a **cross-encoder** is a strong fit here, especially for:
 
 * multiple wireframe versions
 * duplicate summaries
@@ -1441,7 +1420,7 @@ This remains one of the best anti-hallucination design choices in the whole spec
 
 ## 17.2 Token budget management
 
-The context pack must fit within the agent's LLM context window. The platform uses **Claude Sonnet 4.6** with a 200k-token context window, but the usable context budget for RAG content is a fraction of that — the system prompt, agent instructions, and output space must be reserved.
+The context pack must fit within the agent's LLM context window. The platform uses **Claude Sonnet 4.6** with a 200k-token context window, but the usable context budget for RAG content is a fraction of that â€” the system prompt, agent instructions, and output space must be reserved.
 
 ### Budget envelope
 
@@ -1450,7 +1429,7 @@ The context pack must fit within the agent's LLM context window. The platform us
 | System prompt + agent instructions | ~4,000        | Fixed per agent type                                                        |
 | Output reservation                 | ~8,000        | Minimum output space reserved for agent-generated content                   |
 | **RAG context pack (total)**       | **~18,000**   | Maximum RAG content per agent invocation at current stage                   |
-| Hard ceiling (full window)         | 200,000       | Claude Sonnet 4.6 — never approach this limit in production invocations     |
+| Hard ceiling (full window)         | 200,000       | Claude Sonnet 4.6 â€” never approach this limit in production invocations     |
 
 The 18,000-token RAG budget is deliberately conservative. It leaves overhead for edge cases and prevents latency spikes from near-limit context processing.
 
@@ -1458,21 +1437,21 @@ The 18,000-token RAG budget is deliberately conservative. It leaves overhead for
 
 | Context pack section      | Target budget | Overflow rule                                                         |
 | ------------------------- | ------------- | --------------------------------------------------------------------- |
-| Facts (structured summary)| 800           | Fixed — truncate only if the fact set itself is abnormally large      |
+| Facts (structured summary)| 800           | Fixed â€” truncate only if the fact set itself is abnormally large      |
 | Requirements (top chunks) | 4,000         | If exceeded, drop lowest-ranked chunks first                          |
 | State refs                | 2,000         | If exceeded, keep states directly referenced in query; drop periphery |
 | Reusable assets           | 3,000         | If exceeded, keep approved assets; drop drafts                        |
 | Related history           | 3,000         | If exceeded, keep most recent and highest-confidence entries          |
 | Mismatch warnings         | 1,500         | Never truncate blocking-severity warnings; truncate low-severity last |
 | Evidence bundle refs      | 2,000         | Triage/healing only; absent for other agent types                     |
-| Gaps / conflicts          | 700           | Fixed — summarize if too long                                         |
+| Gaps / conflicts          | 700           | Fixed â€” summarize if too long                                         |
 | **Total**                 | **17,000**    | 1,000 token buffer retained                                           |
 
 ### Token counting approach
 
 Token counts must be measured **before** assembling the final context pack, not estimated. The Context Pack Builder must:
 
-1. Tokenize each candidate section using the same tokenizer as the target model (Claude uses the same tokenizer family as GPT — `tiktoken cl100k_base` is a close enough approximation for budget estimation)
+1. Tokenize each candidate section using the same tokenizer as the target model (Claude uses the same tokenizer family as GPT â€” `tiktoken cl100k_base` is a close enough approximation for budget estimation)
 2. Accumulate section totals as candidates are added
 3. Stop adding items to a section once its budget is reached
 4. Log the actual token count per section in the `context_pack_log.size_metrics_json` field
@@ -1484,23 +1463,23 @@ When total RAG content would exceed 18,000 tokens:
 1. Apply section budget caps first (drop lowest-ranked items per section)
 2. If still over budget after applying all caps, reduce the history section first
 3. Then reduce the reusable assets section
-4. **Never** truncate mid-chunk — drop whole chunks, not partial text
+4. **Never** truncate mid-chunk â€” drop whole chunks, not partial text
 5. Log a `context_budget_exceeded` warning in the retrieval audit log with the original item counts and final item counts
-6. Never silently discard a blocking mismatch warning or a current-run evidence ref — these must always fit regardless of budget pressure
+6. Never silently discard a blocking mismatch warning or a current-run evidence ref â€” these must always fit regardless of budget pressure
 
 ### Agent-specific budget overrides
 
 | Agent type              | RAG budget  | Notes                                                        |
 | ----------------------- | ----------- | ------------------------------------------------------------ |
-| Case Understanding      | 14,000      | Narrower — early in pipeline, fewer history artifacts        |
+| Case Understanding      | 14,000      | Narrower â€” early in pipeline, fewer history artifacts        |
 | Requirement Mapping     | 14,000      | Same rationale                                               |
-| Risk & Strategy         | 18,000      | Full budget — needs broad multi-source context               |
-| Test Authoring          | 18,000      | Full budget — reuse assets + requirements + state            |
-| Failure Triage          | 20,000      | Expanded — evidence-heavy; reduce output reservation to 6k  |
-| Healing                 | 16,000      | Focused forensic context — quality over breadth              |
-| Playbook Recommendation | 14,000      | Narrower — diagnostic artifacts only                         |
-| Defect Drafting         | 12,000      | Short focused context — triage result + requirements + evidence |
-| Learning                | 22,000      | Widest — pattern analysis needs broad history; reduce output to 4k |
+| Risk & Strategy         | 18,000      | Full budget â€” needs broad multi-source context               |
+| Test Authoring          | 18,000      | Full budget â€” reuse assets + requirements + state            |
+| Failure Triage          | 20,000      | Expanded â€” evidence-heavy; reduce output reservation to 6k  |
+| Healing                 | 16,000      | Focused forensic context â€” quality over breadth              |
+| Playbook Recommendation | 14,000      | Narrower â€” diagnostic artifacts only                         |
+| Defect Drafting         | 12,000      | Short focused context â€” triage result + requirements + evidence |
+| Learning                | 22,000      | Widest â€” pattern analysis needs broad history; reduce output to 4k |
 
 ---
 
@@ -1593,10 +1572,10 @@ Understand the case completely.
 
 ### Graph expansion
 
-* requirement → flow
-* flow → page/API
-* defect → flow/page
-* page → state if state-map summaries exist
+* requirement â†’ flow
+* flow â†’ page/API
+* defect â†’ flow/page
+* page â†’ state if state-map summaries exist
 
 ### Output
 
@@ -1622,12 +1601,12 @@ Create evidence-backed mappings.
 
 ### Graph expansion
 
-* chunk → requirement
-* requirement → flow
-* requirement → state
-* state → transition
-* page → API
-* defect → requirement
+* chunk â†’ requirement
+* requirement â†’ flow
+* requirement â†’ state
+* state â†’ transition
+* page â†’ API
+* defect â†’ requirement
 
 ### Output
 
@@ -1653,10 +1632,10 @@ Identify what matters most.
 
 ### Graph expansion
 
-* flow → prior runs
-* requirement → defect
-* state → prior failures
-* test asset → reuse potential
+* flow â†’ prior runs
+* requirement â†’ defect
+* state â†’ prior failures
+* test asset â†’ reuse potential
 
 ### Output
 
@@ -1684,11 +1663,11 @@ Reuse before creating from scratch.
 
 ### Graph expansion
 
-* requirement → scenario
-* scenario → asset
-* asset → assertions
-* page → flow module
-* state → playbook
+* requirement â†’ scenario
+* scenario â†’ asset
+* asset â†’ assertions
+* page â†’ flow module
+* state â†’ playbook
 
 ### Output
 
@@ -1714,10 +1693,10 @@ Compare current failure to known patterns.
 
 ### Graph expansion
 
-* run → asset → scenario → requirement
-* run → state → prior failures
-* defect draft → known defect similarity
-* healing event → instability history
+* run â†’ asset â†’ scenario â†’ requirement
+* run â†’ state â†’ prior failures
+* defect draft â†’ known defect similarity
+* healing event â†’ instability history
 
 ### Output
 
@@ -1743,10 +1722,10 @@ Compare current UI shift to known healing and instability patterns.
 
 ### Graph expansion
 
-* fingerprint → element
-* state → transition
-* healing → review decision
-* instability signal → repeated failures
+* fingerprint â†’ element
+* state â†’ transition
+* healing â†’ review decision
+* instability signal â†’ repeated failures
 
 ### Output
 
@@ -1773,9 +1752,9 @@ Decide whether diagnostic discoveries are stable enough to export/promote.
 
 ### Graph expansion
 
-* run → state → transition
-* run → healing
-* playbook → review outcomes
+* run â†’ state â†’ transition
+* run â†’ healing
+* playbook â†’ review outcomes
 
 ### Output
 
@@ -1800,10 +1779,10 @@ Write a grounded issue draft.
 
 ### Graph expansion
 
-* run → requirement
-* run → state
-* run → evidence
-* triage → defect similarity
+* run â†’ requirement
+* run â†’ state
+* run â†’ evidence
+* triage â†’ defect similarity
 
 ### Output
 
@@ -1828,10 +1807,10 @@ Find repeat patterns.
 
 ### Graph expansion
 
-* asset → repeated failures
-* page/state → repeated locator issues
-* review decisions → accepted/rejected patterns
-* playbook → promotion success/failure patterns
+* asset â†’ repeated failures
+* page/state â†’ repeated locator issues
+* review decisions â†’ accepted/rejected patterns
+* playbook â†’ promotion success/failure patterns
 
 ### Output
 
@@ -2171,7 +2150,7 @@ Automate assembly of:
 
 into a retrieval-ready bundle for triage and healing.
 
-This is the best practical interpretation of the review’s implementation priorities. 
+This is the best practical interpretation of the reviewâ€™s implementation priorities. 
 
 ---
 
@@ -2179,7 +2158,7 @@ This is the best practical interpretation of the review’s implementation prior
 
 Build in this order.
 
-## Phase A — Foundational Three
+## Phase A â€” Foundational Three
 
 1. artifact chunking
 2. metadata enrichment
@@ -2189,7 +2168,7 @@ Build in this order.
 6. state-map summaries
 7. evidence summaries and bundles
 
-## Phase B — Core Graph-RAG
+## Phase B â€” Core Graph-RAG
 
 8. graph expansion API
 9. reranking
@@ -2197,7 +2176,7 @@ Build in this order.
 11. mismatch summaries
 12. state-aware retriever
 
-## Phase C — Agent-specialized retrieval
+## Phase C â€” Agent-specialized retrieval
 
 13. agent-specific retrieval modes
 14. retrieval logs

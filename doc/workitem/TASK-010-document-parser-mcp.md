@@ -48,6 +48,8 @@ Implement parser MCP for markdown and structured extraction used in understandin
 ## Test Cases
 
 - `TC-S3-002` — Document Parser extracts expected sections and criteria from markdown fixture with correct source refs
+- `TCN-S3-001` — Unsupported MIME type is rejected with `UNSUPPORTED_CONTENT_TYPE` and no parser side effects
+- `TCE-S3-001` — Very large document is chunked/truncated deterministically with overflow warning
 
 ## Definition of Done
 
@@ -55,7 +57,7 @@ Implement parser MCP for markdown and structured extraction used in understandin
 - [ ] `ParsedDocument` output model schema-validated before return
 - [ ] Source artifact metadata present on every output item
 - [ ] Image extraction pipeline stubbed in `ci` profile (no Claude Vision or OCR calls)
-- [ ] `TC-S3-002` passes in `integration` profile
+- [ ] `TC-S3-002`, `TCN-S3-001`, `TCE-S3-001` pass in `integration` profile
 - [ ] Unit tests for heading/criteria extraction pass in `ci` profile
 
 ## Owner

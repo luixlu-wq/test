@@ -49,6 +49,9 @@ Implement semantic state generation and mismatch detection/classification pipeli
 
 - `TC-S5-001` — State map fingerprint identical on replay
 - `TC-S5-003` — Blocking mismatch has `blocks_execution = True`; workflow gate enforces it
+- `TCN-S5-001` — Cyclic/self-loop transition set is rejected by state-map validator
+- `TCN-S5-002` — Mismatch output missing required source refs fails contract validation
+- `TCE-S5-001` — High-cardinality mismatch inputs preserve deterministic severity ordering
 
 ## Definition of Done
 
@@ -57,7 +60,7 @@ Implement semantic state generation and mismatch detection/classification pipeli
 - [ ] `blocks_execution` flag set correctly per severity rule
 - [ ] `DETECTED_FROM_CHUNK` relationship direction correct in graph writes
 - [ ] MERGE semantics verified: no duplicate `SemanticStateMap` or `MismatchWarning` nodes on re-run
-- [ ] `TC-S5-001` and `TC-S5-003` pass in `integration` profile
+- [ ] `TC-S5-001`, `TC-S5-003`, `TCN-S5-001`, `TCN-S5-002`, `TCE-S5-001` pass in `integration` profile
 
 ## Owner
 

@@ -47,6 +47,9 @@ Implement persistence roundtrip and integrity tests for key repository operation
 
 - `TC-S2-002` — Entity graph persists and reloads with all FK links
 - `TC-S2-003` — Rollback leaves no partial entities; soft-delete excludes entity from default queries
+- `TCN-S2-001` — Duplicate unique-key race leaves no orphan rows after rollback
+- `TCN-S2-002` — Simulated DB connection loss during transaction produces retry-safe final state
+- `TCE-S2-001` — Concurrent writes on same request/run preserve deterministic referential integrity
 
 ## Definition of Done
 
@@ -55,7 +58,7 @@ Implement persistence roundtrip and integrity tests for key repository operation
 - [ ] Rollback test confirms no partial entities remain after aborted transaction
 - [ ] Retention marker test passes (`TC-S2-004` also covered here)
 - [ ] N+1 query prevention verified by asserting SQL query count in at least one traversal test
-- [ ] `TC-S2-002` and `TC-S2-003` pass in `integration` profile
+- [ ] `TC-S2-002`, `TC-S2-003`, `TCN-S2-001`, `TCN-S2-002`, `TCE-S2-001` pass in `integration` profile
 
 ## Owner
 

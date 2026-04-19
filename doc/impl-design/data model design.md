@@ -1,20 +1,4 @@
-I agree with most of Gemini’s comments. The strongest updates are:
-
-* make the **operational data model** explicitly the **system of record**, separate from the knowledge graph as the reasoning layer
-* strengthen the “**black box flight recorder**” idea across `Request`, `TriggerEvent`, `Workflow`, `AgentTask`, `RetrievalQuery`, and `ContextPack`
-* make **ElementFingerprints** explicitly **versioned snapshots**, so healing can compare how a UI element drifted over time
-* make **forensic evidence integrity** stronger by requiring checksums/hashes across evidence artifacts
-* make `RunStep` evidence linkage more explicit by ensuring step-level linkage to both **semantic trace** and **what was observed**
-* strengthen **DeterministicPlaybook** with a **performance baseline** so the platform can detect “execution regression” even when the test still passes
-* reinforce **TriggerEvent → Case → Run** lineage so shift-left reporting is first-class
-
-I did **not** change the overall direction, because your uploaded Part 6 was already strong on polyglot persistence, workflow traceability, Graph-RAG observability, and forensic data handling. The comments mostly sharpen the operational rigor rather than requiring a redesign. 
-
-Below is the **rewritten Part 6 — Data Model**, kept full-length and aligned to the final architecture.
-
----
-
-# Part 6 — Data Model
+﻿# Part 6 â€” Data Model
 
 ## AI QA Platform
 
@@ -26,7 +10,7 @@ This section defines the **platform operational data model** for your AI-powered
 
 This is the **application and persistence model**, not the knowledge graph model alone.
 
-If the Knowledge Graph is the platform’s **reasoning brain**, this operational model is the platform’s **system of record** and **stateful body**.
+If the Knowledge Graph is the platformâ€™s **reasoning brain**, this operational model is the platformâ€™s **system of record** and **stateful body**.
 
 It covers the structured records needed for:
 
@@ -171,7 +155,7 @@ Use for:
 * playbook summaries
 * mismatch summaries
 
-This remains the right storage split and matches the review’s implementation matrix. 
+This remains the right storage split and matches the reviewâ€™s implementation matrix. 
 
 ---
 
@@ -199,7 +183,7 @@ The operational data model is divided into these domains:
 18. Learning domain
 19. Audit / policy domain
 
-The final architecture’s major explicit additions remain:
+The final architectureâ€™s major explicit additions remain:
 
 * Trigger
 * Understanding
@@ -216,39 +200,39 @@ Use stable IDs with readable prefixes.
 
 Examples:
 
-* `REQ-1001` — request
-* `TRG-1001` — trigger event
-* `CASE-101` — case
-* `ART-201` — artifact
-* `CHUNK-9001` — artifact chunk
-* `UNDERSTAND-1001` — fused case understanding
-* `STATEMAP-1001` — semantic state map
-* `STATE-1001` — semantic state entry
-* `TRANS-1001` — transition
-* `FP-1001` — fingerprint family
-* `FPV-1001` — fingerprint version snapshot
-* `MM-1001` — mismatch warning
-* `RV-2001` — retrieval view
-* `RQLOG-1001` — retrieval query log
-* `RRES-1001` — retrieval result log
-* `CTXPACK-1001` — context pack log
-* `WF-1001` — workflow instance
-* `STRAT-1001` — strategy
-* `SCN-2001` — scenario
-* `TA-3001` — test asset
-* `PLAYBOOK-1001` — deterministic playbook
-* `RUN-3001` — run
-* `RUNSTEP-1001` — run step
-* `EV-1001` — evidence
-* `EVSUM-1001` — evidence summary
-* `BUNDLE-1001` — evidence bundle
-* `HEAL-1001` — healing event
-* `HEALLOG-1001` — healing log
-* `TRI-1001` — triage result
-* `DD-9001` — defect draft
-* `APP-1001` — approval task
-* `DEC-1001` — review decision
-* `LS-1001` — learning signal
+* `REQ-1001` â€” request
+* `TRG-1001` â€” trigger event
+* `CASE-101` â€” case
+* `ART-201` â€” artifact
+* `CHUNK-9001` â€” artifact chunk
+* `UNDERSTAND-1001` â€” fused case understanding
+* `STATEMAP-1001` â€” semantic state map
+* `STATE-1001` â€” semantic state entry
+* `TRANS-1001` â€” transition
+* `FP-1001` â€” fingerprint family
+* `FPV-1001` â€” fingerprint version snapshot
+* `MM-1001` â€” mismatch warning
+* `RV-2001` â€” retrieval view
+* `RQLOG-1001` â€” retrieval query log
+* `RRES-1001` â€” retrieval result log
+* `CTXPACK-1001` â€” context pack log
+* `WF-1001` â€” workflow instance
+* `STRAT-1001` â€” strategy
+* `SCN-2001` â€” scenario
+* `TA-3001` â€” test asset
+* `PLAYBOOK-1001` â€” deterministic playbook
+* `RUN-3001` â€” run
+* `RUNSTEP-1001` â€” run step
+* `EV-1001` â€” evidence
+* `EVSUM-1001` â€” evidence summary
+* `BUNDLE-1001` â€” evidence bundle
+* `HEAL-1001` â€” healing event
+* `HEALLOG-1001` â€” healing log
+* `TRI-1001` â€” triage result
+* `DD-9001` â€” defect draft
+* `APP-1001` â€” approval task
+* `DEC-1001` â€” review decision
+* `LS-1001` â€” learning signal
 
 The addition of `FPV-*` is an important improvement from the review.
 
@@ -309,8 +293,8 @@ Join table between request and cases.
 | Value              | Meaning                                                                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `request`          | The case was explicitly named in the inbound request payload. The caller directly identified which case to run.                                   |
-| `derived`          | The case was not in the request payload but was inferred by the Intake Agent from the request content — e.g. the request described a login flow and the agent resolved it to `CASE-login-flow`. This happens when the request is descriptive rather than case-keyed. |
-| `trigger_inferred` | The case was not submitted by a human at all. The Trigger Service inferred it from a local change event — e.g. a pre-commit hook modified files under the `auth/` folder, so the trigger resolved the affected cases automatically.               |
+| `derived`          | The case was not in the request payload but was inferred by the Intake Agent from the request content â€” e.g. the request described a login flow and the agent resolved it to `CASE-login-flow`. This happens when the request is descriptive rather than case-keyed. |
+| `trigger_inferred` | The case was not submitted by a human at all. The Trigger Service inferred it from a local change event â€” e.g. a pre-commit hook modified files under the `auth/` folder, so the trigger resolved the affected cases automatically.               |
 
 ---
 
@@ -726,13 +710,13 @@ Stores the final context pack used for an agent task.
 | agent_task_id      | string          |                                                                                                           |
 | case_id            | string nullable |                                                                                                           |
 | context_type       | string          | `mapping`, `strategy`, `authoring`, `triage`, `defect_drafting`, `learning`, `healing`, `playbook_review` |
-| execution_mode     | string nullable | `diagnostic`, `regression`                                                                                |
+| execution_mode     | string nullable | `draft`, `diagnostic`, `regression`                                                                       |
 | summary            | text nullable   |                                                                                                           |
 | included_refs_json | json            | list of chunk/entity/asset refs                                                                           |
 | size_metrics_json  | json nullable   | token counts, chunk count, asset count                                                                    |
 | created_at         | timestamp       |                                                                                                           |
 
-This remains the key “what the agent actually saw” record.
+This remains the key â€œwhat the agent actually sawâ€ record.
 
 ---
 
@@ -806,9 +790,11 @@ Represents one agent invocation.
 | case_id           | string nullable    |                             |
 | agent_name        | string             |                             |
 | prompt_version    | string             |                             |
-| model_profile     | string             |                             |
+| schema_version    | string             | output schema version used by validator |
+| model_id          | string             | exact provider model id, e.g. `claude-sonnet-4-6` |
+| model_profile     | string nullable    | optional profile alias for routing/analytics compatibility |
 | context_pack_id   | string nullable    | FK to `context_pack_log.id` |
-| execution_mode    | string nullable    | `diagnostic`, `regression`  |
+| execution_mode    | string nullable    | `draft`, `diagnostic`, `regression`  |
 | status            | string             |                             |
 | input_json        | json               | ideally sanitized           |
 | output_json       | json nullable      |                             |
@@ -819,7 +805,7 @@ Represents one agent invocation.
 | error_json        | json nullable      |                             |
 | created_at        | timestamp          |                             |
 
-This remains a core “flight recorder” table.
+This remains a core â€œflight recorderâ€ table.
 
 ---
 
@@ -903,7 +889,9 @@ Stores immutable asset versions.
 | content_storage_ref | text            |                                          |
 | checksum            | string          |                                          |
 | prompt_version      | string nullable |                                          |
-| model_profile       | string nullable |                                          |
+| schema_version      | string nullable | output schema version used when asset version was generated |
+| model_id            | string nullable | exact provider model id used at generation time |
+| model_profile       | string nullable | optional profile alias for compatibility |
 | context_pack_id     | string nullable |                                          |
 | state_map_id        | string nullable |                                          |
 | playbook_id         | string nullable |                                          |
@@ -1013,7 +1001,7 @@ Represents a run of one or more test assets.
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `diagnostic`  | The agent explores the application autonomously. No deterministic playbook is required. The agent uses state-driven waits and collects evidence while discovering UI behavior. Results feed the Playbook Service for hardening.    |
 | `regression`  | A previously-hardened deterministic playbook drives execution. Steps are scripted, selectors are fingerprint-stabilized, waits are signal-driven. The run validates known expected outcomes against a stable test asset.          |
-| `draft`       | A partially-configured run that has not yet been dispatched. Used when a run record is created ahead of full asset resolution — for example, when a workflow stage is preparing assets before the Execution Service is triggered. A `draft` run must not be picked up by the Execution Service until its status transitions to `pending`. |
+| `draft`       | A partially-configured run that has not yet been dispatched. Used when a run record is created ahead of full asset resolution â€” for example, when a workflow stage is preparing assets before the Execution Service is triggered. A `draft` run must not be picked up by the Execution Service until its status transitions to `pending`. |
 | started_at             | timestamp          |                                                                             |
 | ended_at               | timestamp nullable |                                                                             |
 | execution_context_json | json nullable      | browser, auth profile, etc.                                                 |
@@ -1070,7 +1058,7 @@ Represents fine-grained execution steps.
 
 ### Why this change matters
 
-Gemini’s comment is correct:
+Geminiâ€™s comment is correct:
 each important step should be able to point to both:
 
 * the **why** (`semantic_trace`)
@@ -1389,7 +1377,7 @@ Represents a human review item.
 
 ## 22.2 `review_decision`
 
-Represents a reviewer’s decision.
+Represents a reviewerâ€™s decision.
 
 | Field            | Type          | Notes                                                                        |
 | ---------------- | ------------- | ---------------------------------------------------------------------------- |
@@ -1727,7 +1715,7 @@ That is the minimum serious data model that fits the final architecture and the 
 
 For a single case `login-flow`:
 
-## Step 1 — Trigger / request
+## Step 1 â€” Trigger / request
 
 Insert:
 
@@ -1735,7 +1723,7 @@ Insert:
 * `qa_request`
 * `qa_request_case`
 
-## Step 2 — Ingestion
+## Step 2 â€” Ingestion
 
 Insert:
 
@@ -1743,7 +1731,7 @@ Insert:
 * `artifact_chunk`
 * `artifact_parse_result`
 
-## Step 3 — Distributed understanding
+## Step 3 â€” Distributed understanding
 
 Insert:
 
@@ -1755,7 +1743,7 @@ Insert:
 * `element_fingerprint_version`
 * `mismatch_warning`
 
-## Step 4 — Retrieval preparation
+## Step 4 â€” Retrieval preparation
 
 Insert:
 
@@ -1764,7 +1752,7 @@ Insert:
 * `retrieval_result_log`
 * `context_pack_log`
 
-## Step 5 — Workflow and agents
+## Step 5 â€” Workflow and agents
 
 Insert:
 
@@ -1772,7 +1760,7 @@ Insert:
 * `workflow_stage_execution`
 * `agent_task_execution`
 
-## Step 6 — Test generation
+## Step 6 â€” Test generation
 
 Insert:
 
@@ -1782,7 +1770,7 @@ Insert:
 * `test_asset_version`
 * `test_assertion`
 
-## Step 7 — Execution
+## Step 7 â€” Execution
 
 Insert:
 
@@ -1792,7 +1780,7 @@ Insert:
 * `evidence`
 * `evidence_summary`
 
-## Step 8 — Healing / playbook
+## Step 8 â€” Healing / playbook
 
 Insert:
 
@@ -1801,7 +1789,7 @@ Insert:
 * `deterministic_playbook`
 * `playbook_signal`
 
-## Step 9 — Triage and defects
+## Step 9 â€” Triage and defects
 
 Insert:
 
@@ -1811,14 +1799,14 @@ Insert:
 * `defect_draft_step`
 * `defect_draft_evidence`
 
-## Step 10 — Review
+## Step 10 â€” Review
 
 Insert:
 
 * `approval_task`
 * `review_decision`
 
-## Step 11 — Learning
+## Step 11 â€” Learning
 
 Insert:
 
@@ -1974,7 +1962,7 @@ Without a profile table, `environment = "UAT"` is an opaque label. With it, the 
 
 ### Constraints
 
-* `PROD` environment must never allow `mode = diagnostic` — the `allowed_modes` column enforces this at the data layer.
+* `PROD` environment must never allow `mode = diagnostic` â€” the `allowed_modes` column enforces this at the data layer.
 * `LOCAL` environment must always be present with `allowed_modes = ["diagnostic", "regression", "draft"]`.
 * Credentials are **not** stored in this table. The `auth_profile` key is resolved at runtime from a secrets manager or encrypted config store.
 
@@ -2058,7 +2046,7 @@ The metadata rows can stay even if heavy blobs move to cold storage.
 
 The platform uses a **mixed deletion policy** based on record class.
 
-### Never hard-delete — use logical status only
+### Never hard-delete â€” use logical status only
 
 These records are part of the audit trail and must never be physically removed:
 
@@ -2078,30 +2066,30 @@ These records are part of the audit trail and must never be physically removed:
 * `defect_draft`
 * `approval_task`
 
-Mark these as inactive or cancelled via their `status` column. Do not add a `deleted_at` column — status is the deletion signal for these tables.
+Mark these as inactive or cancelled via their `status` column. Do not add a `deleted_at` column â€” status is the deletion signal for these tables.
 
-### Soft delete permitted — add `deleted_at`
+### Soft delete permitted â€” add `deleted_at`
 
 These records are operational but can be logically removed when they are no longer needed without breaking traceability:
 
-* `qa_case` — retire via `status = 'inactive'`; do not hard-delete while linked runs exist
-* `test_asset` / `test_asset_version` — retire via `status = 'retired'` or `'deprecated'`
-* `test_scenario` — retire via `status`
-* `deterministic_playbook` — retire via `status = 'retired'`
-* `semantic_state_map` — supersede via `status = 'superseded'`; previous versions retained for healing comparison
-* `element_fingerprint` — never delete; deprecate versions via `element_fingerprint_version.status`
-* `mismatch_warning` — close via `status = 'resolved'` or `'ignored'`
-* `healing_event` — status-driven lifecycle; no physical delete
-* `retrieval_view` — can be regenerated; soft-delete with a `deleted_at` if stale views need purging
-* `artifact_chunk` — can be reindexed; soft-delete with `deleted_at` when artifact is superseded
+* `qa_case` â€” retire via `status = 'inactive'`; do not hard-delete while linked runs exist
+* `test_asset` / `test_asset_version` â€” retire via `status = 'retired'` or `'deprecated'`
+* `test_scenario` â€” retire via `status`
+* `deterministic_playbook` â€” retire via `status = 'retired'`
+* `semantic_state_map` â€” supersede via `status = 'superseded'`; previous versions retained for healing comparison
+* `element_fingerprint` â€” never delete; deprecate versions via `element_fingerprint_version.status`
+* `mismatch_warning` â€” close via `status = 'resolved'` or `'ignored'`
+* `healing_event` â€” status-driven lifecycle; no physical delete
+* `retrieval_view` â€” can be regenerated; soft-delete with a `deleted_at` if stale views need purging
+* `artifact_chunk` â€” can be reindexed; soft-delete with `deleted_at` when artifact is superseded
 
 ### Hard delete permitted
 
 These records hold no compliance or forensic value after their parent is purged:
 
-* Large binary blobs in object storage — apply retention TTL policies at the storage tier
-* `context_pack_item` — when parent `context_pack_log` is expired and the audit retention window passes
-* `retrieval_result_log` rows older than the retention window if storage cost is prohibitive — retain the `retrieval_query_log` row as a record that retrieval happened
+* Large binary blobs in object storage â€” apply retention TTL policies at the storage tier
+* `context_pack_item` â€” when parent `context_pack_log` is expired and the audit retention window passes
+* `retrieval_result_log` rows older than the retention window if storage cost is prohibitive â€” retain the `retrieval_query_log` row as a record that retrieval happened
 
 ### Cascade rules
 
@@ -2192,15 +2180,15 @@ All foreign key columns must have a supporting index to avoid sequential scans o
 
 Where supported by the database engine (PostgreSQL supports these natively):
 
-* `WHERE status = 'pending'` on `approval_task` — speeds up reviewer inbox loading
-* `WHERE status = 'open'` on `mismatch_warning` — speeds up pre-execution mismatch gate
-* `WHERE retrieval_indexed = false` on `artifact_chunk` and `retrieval_view` — speeds up indexing worker queue queries
-* `WHERE mode = 'draft'` on `execution_run` — speeds up the check that finds draft runs awaiting dispatch
+* `WHERE status = 'pending'` on `approval_task` â€” speeds up reviewer inbox loading
+* `WHERE status = 'open'` on `mismatch_warning` â€” speeds up pre-execution mismatch gate
+* `WHERE retrieval_indexed = false` on `artifact_chunk` and `retrieval_view` â€” speeds up indexing worker queue queries
+* `WHERE mode = 'draft'` on `execution_run` â€” speeds up the check that finds draft runs awaiting dispatch
 
 ## 35.5 Index governance rules
 
 * All new tables added in migrations must include FK indexes at migration time, not deferred.
-* No index may be added to an `audit_log` column beyond those listed here without a write-performance review — audit tables are high-insert.
+* No index may be added to an `audit_log` column beyond those listed here without a write-performance review â€” audit tables are high-insert.
 * JSON column content is not indexed by default. If a JSON path is queried frequently enough to need an index, extract it to a native column.
 
 ---
@@ -2209,27 +2197,27 @@ Where supported by the database engine (PostgreSQL supports these natively):
 
 Your final-architecture-aligned operational data model should center on these core record types:
 
-* **Request** — what was asked
-* **Trigger Event** — how the run was initiated
-* **Case** — what is being tested
-* **Artifact / Chunk** — what was ingested and grounded
-* **Case Understanding** — what was fused from artifacts
-* **Semantic State Map / State / Transition / Fingerprint / FingerprintVersion** — what the system believes the UI and behavior model is, and how it drifted over time
-* **Mismatch Warning** — what conflicts were discovered before execution
-* **Retrieval View** — what was summarized for search/reuse
-* **Retrieval Query / Result / Context Pack** — what Graph-RAG retrieved and what the agent actually saw
-* **Workflow** — how the platform processed it
-* **Agent Task** — what each agent produced
-* **Test Scenario / Asset** — what was generated and governed
-* **Deterministic Playbook** — what diagnostic discovery hardened into repeatable execution knowledge, including baseline performance expectations
-* **Run / Step** — what was executed
-* **Evidence / Evidence Summary / Evidence Bundle** — what was captured, summarized, and packaged with integrity metadata
-* **Healing Event / Healing Log** — what runtime forensic healing detected and recorded
-* **Triage Result** — what the platform concluded
-* **Defect Draft** — what issue packet was prepared
-* **Approval / Review** — what humans decided
-* **Learning Signal** — what the system learned
-* **Audit / Tool Logs** — what happened operationally
+* **Request** â€” what was asked
+* **Trigger Event** â€” how the run was initiated
+* **Case** â€” what is being tested
+* **Artifact / Chunk** â€” what was ingested and grounded
+* **Case Understanding** â€” what was fused from artifacts
+* **Semantic State Map / State / Transition / Fingerprint / FingerprintVersion** â€” what the system believes the UI and behavior model is, and how it drifted over time
+* **Mismatch Warning** â€” what conflicts were discovered before execution
+* **Retrieval View** â€” what was summarized for search/reuse
+* **Retrieval Query / Result / Context Pack** â€” what Graph-RAG retrieved and what the agent actually saw
+* **Workflow** â€” how the platform processed it
+* **Agent Task** â€” what each agent produced
+* **Test Scenario / Asset** â€” what was generated and governed
+* **Deterministic Playbook** â€” what diagnostic discovery hardened into repeatable execution knowledge, including baseline performance expectations
+* **Run / Step** â€” what was executed
+* **Evidence / Evidence Summary / Evidence Bundle** â€” what was captured, summarized, and packaged with integrity metadata
+* **Healing Event / Healing Log** â€” what runtime forensic healing detected and recorded
+* **Triage Result** â€” what the platform concluded
+* **Defect Draft** â€” what issue packet was prepared
+* **Approval / Review** â€” what humans decided
+* **Learning Signal** â€” what the system learned
+* **Audit / Tool Logs** â€” what happened operationally
 
 Together with the knowledge graph, this gives you:
 

@@ -45,7 +45,10 @@ Implement request intake, trigger handling, and orchestrated workflow stage mach
 ## Test Cases
 
 - `TC-S1-001` — Duplicate request intake returns existing `workflow_id`; DB has exactly one `test_request` and one `test_workflow` row
-- `TC-S1-002` — Stage retry increments `attempt_count` by 1 only; no duplicate `workflow_stage` side-effects
+- `TC-S1-002` — Stage retry with the same `attempt_count` is a no-op; no duplicate `workflow_stage` side-effects
+- `TCN-S1-001` — Out-of-order stage event is rejected and logged as `INVALID_TRANSITION`
+- `TCN-S1-002` — Stale approval response for an already-resolved task is rejected with no state mutation
+- `TCE-S1-001` — Repeated webhook/event delivery with same event ID does not create duplicate workflow branches
 
 ## Definition of Done
 
@@ -53,9 +56,10 @@ Implement request intake, trigger handling, and orchestrated workflow stage mach
 - [ ] Workflow and stage tables populated correctly on first and duplicate intake
 - [ ] Stage state machine enforces allowed transitions; invalid transitions return 422 with `INVALID_TRANSITION` error
 - [ ] Retry path tested with at least one injected failure scenario
-- [ ] `TC-S1-001` and `TC-S1-002` pass in `integration` profile (PostgreSQL)
+- [ ] `TC-S1-001`, `TC-S1-002`, `TCN-S1-001`, `TCN-S1-002`, `TCE-S1-001` pass in `integration` profile (PostgreSQL)
 - [ ] No `diagnostic` mode requests accepted in `PROD` environment profile
 - [ ] Redis Streams event published on stage completion (verified in integration test)
+- [ ] Negative-path error payload includes `errorCode`, `message`, `retryable`, `correlationId`
 - [ ] PR reviewed and merged; CI green
 
 ## Owner

@@ -19,3 +19,9 @@ Minimal ticket fields:
 7. Test cases
 8. Owner
 9. Status
+10. Negative/edge coverage (`TCN-*`, `TCE-*`) and error-contract assertions where applicable
+
+Implementation planning assets:
+
+- `api/doc/workitem/implementation-order-diagram.md`
+- `api/doc/workitem/implementation-guides/README.md`

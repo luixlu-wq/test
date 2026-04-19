@@ -47,14 +47,17 @@ Implement trigger MCP to support manual, webhook, and shift-left initiation patt
 ## Test Cases
 
 - `TC-S3-004` — Valid trigger validated and enqueued; invalid payload returns `SCHEMA_VALIDATION_ERROR`
+- `TCN-S3-003` — Invalid trigger type/payload pair fails with deterministic schema error and no enqueue side effects
+- `TCE-S1-001` — Duplicate trigger event IDs are idempotent and do not create duplicate workflow branches downstream
 
 ## Definition of Done
 
 - [ ] `trigger.dispatch` validates per-trigger-type required params
 - [ ] Redis Streams publish verified in integration test
 - [ ] `shift_left` trigger blocked in PROD profile
-- [ ] `TC-S3-004` passes in `integration` profile
+- [ ] `TC-S3-004`, `TCN-S3-003`, `TCE-S1-001` pass in `integration` profile
 - [ ] In `ci` profile: Redis stubbed; validation logic tested without external calls
+- [ ] Trigger error responses include `errorCode`, `message`, `retryable`, `correlationId`
 
 ## Owner
 

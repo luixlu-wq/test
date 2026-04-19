@@ -49,6 +49,9 @@ Implement agent runtime orchestration with strict prompt/version governance and 
 - `TC-S7-002` — Prompt metadata stored with agent output; query by `promptVersion` returns correct records
 - `TC-S7-003` — Policy-restricted action in agent output creates `approval_task`; action not executed
 - `TC-S7-004` — `ungrounded_inference` flag in agent output triggers review gate
+- `TCN-S7-001` — Model unavailable error is surfaced explicitly with no silent provider fallback
+- `TCN-S7-002` — Output containing fabricated refs fails grounding validation
+- `TCE-S7-001` — Repeated invalid output retries stop at configured cap and escalate to review
 
 ## Definition of Done
 
@@ -57,7 +60,8 @@ Implement agent runtime orchestration with strict prompt/version governance and 
 - [ ] Output schema validation runs before any downstream consumption
 - [ ] Prompt metadata stored with every persisted output
 - [ ] Policy guardrail fires on `policy_restricted` actions
-- [ ] `TC-S7-001` through `TC-S7-004` pass; LLM calls stubbed in `ci` profile
+- [ ] `TC-S7-001` through `TC-S7-004`, `TCN-S7-001`, `TCN-S7-002`, `TCE-S7-001` pass; LLM calls stubbed in `ci` profile
+- [ ] Agent error payloads follow contract (`errorCode`, `message`, `retryable`, `correlationId`)
 - [ ] PR reviewed and merged; CI green
 
 ## Owner

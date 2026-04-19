@@ -49,6 +49,9 @@ Implement failure classification, confidence scoring, defect draft packet creati
 - `TC-S10-002` — Defect draft remains in `review` status until approval task is `approved`
 - `TC-S10-003` — External publish blocked by policy without `defect_publish` permission
 - `TC-S10-004` — Triage result with unfinalized evidence refs rejected with `EVIDENCE_NOT_FINALIZED`
+- `TCN-S10-001` — Contradictory evidence signals force `needs_human_review` instead of auto-defect path
+- `TCN-S10-002` — Malformed defect packet (missing expected/actual) is rejected by contract validator
+- `TCE-S10-001` — Duplicate similar-defect matches are deduplicated and ranked deterministically
 
 ## Definition of Done
 
@@ -57,7 +60,7 @@ Implement failure classification, confidence scoring, defect draft packet creati
 - [ ] `approval_task` created for low-confidence and `test_flakiness` outcomes
 - [ ] Defect draft lifecycle enforces approval gate before publish
 - [ ] Policy check on external publish path
-- [ ] `TC-S10-001` through `TC-S10-004` pass; LLM calls stubbed in `ci` profile
+- [ ] `TC-S10-001` through `TC-S10-004`, `TCN-S10-001`, `TCN-S10-002`, `TCE-S10-001` pass; LLM calls stubbed in `ci` profile
 - [ ] PR reviewed and merged; CI green
 
 ## Owner

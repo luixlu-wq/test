@@ -48,13 +48,16 @@ Create shared schema module and valid/invalid fixture payloads for MCP, agent, a
 
 - `TC-S0-001` — Valid MCP request envelope fixture passes `validate_contract`
 - `TC-S0-002` — MCP envelope fixture with missing `requestId` raises `ContractValidationError` pointing to `requestId`
+- `TCN-S0-001` — Fixture with malformed timestamp fails schema validation with stable `errorCode`
+- `TCN-S0-002` — Fixture with unknown critical field fails in strict schema mode
+- `TCE-S0-001` — Re-validating the same fixture repeatedly returns deterministic results
 
 ## Definition of Done
 
 - [ ] Schema module importable as `from ai_qa_tester.schemas import mcp, agent, event`
 - [ ] All fixture files committed under `api/tests/data/contracts/`
 - [ ] `validate_contract` helper covered by unit tests
-- [ ] `TC-S0-001` and `TC-S0-002` pass in `ci` profile
+- [ ] `TC-S0-001`, `TC-S0-002`, `TCN-S0-001`, `TCN-S0-002`, `TCE-S0-001` pass in `ci` profile
 - [ ] No hardcoded schema field names outside the schema module
 
 ## Owner

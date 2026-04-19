@@ -27,13 +27,18 @@ Complete runtime execution, forensic evidence, confidence triage, defect draftin
 2. Triage decisions include confidence, reason, and evidence refs.
 3. Healing proposals require approval before regression use.
 4. CI gates enforce determinism and contract integrity.
+5. CI includes the negative/edge reliability gate with deterministic failpoints and edge-limit assertions.
 
 ## Test Cases
 
 - `TC-S9-001`, `TC-S9-002`, `TC-S9-003`, `TC-S9-004`
+- `TCN-S9-001`, `TCN-S9-002`, `TCE-S9-001`
 - `TC-S10-001`, `TC-S10-002`, `TC-S10-003`, `TC-S10-004`
+- `TCN-S10-001`, `TCN-S10-002`, `TCE-S10-001`
 - `TC-S11-001`, `TC-S11-002`, `TC-S11-003`, `TC-S11-004`
+- `TCN-S11-001`, `TCN-S11-002`, `TCE-S11-001`
 - `TC-S12-001`, `TC-S12-002`, `TC-S12-003`, `TC-S12-004`
+- `TCN-S12-001`, `TCN-S12-002`, `TCE-S12-001`
 
 ## Owner
 

@@ -1,18 +1,4 @@
-Yes — below is the **full-length rewritten Part 3 — Knowledge Graph Schema**, with the **broader original section coverage restored** and the **Gemini-approved improvements merged in**.
-
-I restored the sections that still fit the requirements and comments, and only changed what genuinely improved the design:
-
-* made **UIState** and **Transition** more explicitly central for path reasoning
-* added **versioned fingerprint lineage**
-* strengthened **MismatchWarning** for pre-execution governance
-* added **confidence on Evidence → DefectDraft support**
-* strengthened **DeterministicPlaybook reuse through shared UI states**
-
-Your original fuller graph document still fit the architecture very well, so this version keeps that fuller structure instead of compressing it.  
-
----
-
-# Part 3 — Knowledge Graph Schema
+﻿# Part 3 â€” Knowledge Graph Schema
 
 ## AI QA Platform
 
@@ -237,13 +223,13 @@ Semantic states, transitions, and expected outcomes must be explicit graph entit
 
 The graph should make it easy to expand from:
 
-* chunk → requirement
-* requirement → flow
-* flow → page/state/transition/API
-* requirement → scenario/test asset
-* run → evidence/defect/history
-* unstable element → fingerprint → healing log
-* diagnostic run → discovered state signals → deterministic playbook
+* chunk â†’ requirement
+* requirement â†’ flow
+* flow â†’ page/state/transition/API
+* requirement â†’ scenario/test asset
+* run â†’ evidence/defect/history
+* unstable element â†’ fingerprint â†’ healing log
+* diagnostic run â†’ discovered state signals â†’ deterministic playbook
 
 ## 4.10 Preserve history instead of replacing it
 
@@ -272,7 +258,7 @@ The graph should be divided conceptually into these domains:
 15. **Learning Domain**
 16. **Trigger Domain**
 
-This supports the final architecture’s explicit modeling of:
+This supports the final architectureâ€™s explicit modeling of:
 
 * distributed understanding
 * semantic state
@@ -527,8 +513,8 @@ Represents a state transition.
 
 Examples:
 
-* submit valid credentials → dashboard loaded
-* submit invalid password → validation error shown
+* submit valid credentials â†’ dashboard loaded
+* submit invalid password â†’ validation error shown
 
 Example properties:
 
@@ -897,7 +883,7 @@ Optional node for stable learned patterns.
 
 ### Direction note: `DETECTED_FROM_CHUNK`
 
-A mismatch is not grounded in a single chunk the way a requirement or state is — it is detected by comparing two or more conflicting chunks. The relationship therefore points from the warning back to each contributing chunk, consistent with the artifact-level `(MismatchWarning)-[:DETECTED_FROM]->(Artifact)` in section 7.6. A single `MismatchWarning` may have two `DETECTED_FROM_CHUNK` edges: one to the chunk that stated the expectation and one to the chunk that contradicted it.
+A mismatch is not grounded in a single chunk the way a requirement or state is â€” it is detected by comparing two or more conflicting chunks. The relationship therefore points from the warning back to each contributing chunk, consistent with the artifact-level `(MismatchWarning)-[:DETECTED_FROM]->(Artifact)` in section 7.6. A single `MismatchWarning` may have two `DETECTED_FROM_CHUNK` edges: one to the chunk that stated the expectation and one to the chunk that contradicted it.
 
 These are crucial for Graph-RAG expansion.
 
@@ -1583,7 +1569,7 @@ RETURN p;
 
 # 16. Storage architecture
 
-The platform commits to **Neo4j** as the graph store and a **Qdrant or pgvector** vector index as the retrieval/search layer. These are not recommendations — they are the committed technology choices recorded in the architectural design (Section 29 — Platform Technology Profile).
+The platform commits to **Neo4j** as the graph store and a **Qdrant or pgvector** vector index as the retrieval/search layer. These are not recommendations â€” they are the committed technology choices recorded in the architectural design (Section 29 â€” Platform Technology Profile).
 
 Neo4j is selected because:
 
@@ -1731,7 +1717,7 @@ Creates:
 
 ## 17.1 Graph write atomicity and transaction boundaries
 
-Every graph write from a service must be **atomic at the Neo4j transaction level**. A partial graph write — where some nodes are created and a subsequent relationship write fails — leaves the graph in an inconsistent state that is difficult to detect and repair.
+Every graph write from a service must be **atomic at the Neo4j transaction level**. A partial graph write â€” where some nodes are created and a subsequent relationship write fails â€” leaves the graph in an inconsistent state that is difficult to detect and repair.
 
 ### Transaction scope per service write
 
@@ -1753,7 +1739,7 @@ If a Neo4j transaction rolls back due to a constraint violation or transient err
 
 * the service must **not** mark the workflow stage as complete in the relational store
 * the service must emit a failure event or surface the error so the orchestrator can retry the stage
-* the graph should be treated as unmodified — no partial cleanup is needed because the transaction rolled back
+* the graph should be treated as unmodified â€” no partial cleanup is needed because the transaction rolled back
 * if the error is a uniqueness constraint conflict on a node that already exists from a prior attempt, treat it as a re-ingestion case (see section 17.2)
 
 ### No cross-service graph transactions
@@ -1768,15 +1754,15 @@ A service may be retried after a partial failure, a workflow replay, or an inten
 
 ### MERGE vs CREATE
 
-All node writes to Neo4j must use `MERGE` on the node's stable business ID, not `CREATE`. A `MERGE` finds the existing node if present or creates it if absent — this is the correct primitive for idempotent node writes.
+All node writes to Neo4j must use `MERGE` on the node's stable business ID, not `CREATE`. A `MERGE` finds the existing node if present or creates it if absent â€” this is the correct primitive for idempotent node writes.
 
 ```cypher
-// Correct — idempotent
+// Correct â€” idempotent
 MERGE (r:Requirement {requirementId: "REQ-501"})
 ON CREATE SET r.text = $text, r.status = "active", r.createdAt = $now
 ON MATCH SET r.updatedAt = $now
 
-// Wrong — creates duplicate on retry
+// Wrong â€” creates duplicate on retry
 CREATE (r:Requirement {requirementId: "REQ-501", text: $text})
 ```
 
@@ -1803,11 +1789,11 @@ SET rel.confidence = $confidence, rel.confidenceReason = $reason, rel.updatedAt 
 
 When a service re-ingests content that was previously processed (e.g. an artifact is re-parsed after the source file changed), it must:
 
-1. `MERGE` the parent node (e.g. `Artifact`) by its stable ID — this finds the existing node
+1. `MERGE` the parent node (e.g. `Artifact`) by its stable ID â€” this finds the existing node
 2. Increment the `version` property and set `updatedAt`
 3. For version-sensitive child nodes (e.g. `FingerprintVersion`, `ArtifactChunk`), check whether the content has changed using a checksum comparison before deciding to create a new version node
 4. If a new version is warranted, create the new version node and add a `SUPERSEDED_BY` relationship from the old version to the new one
-5. Do not delete the old version node — preserve history
+5. Do not delete the old version node â€” preserve history
 
 ### Stale relationship cleanup
 
@@ -1815,7 +1801,7 @@ When a service regenerates a set of relationships (e.g. the Semantic State Servi
 
 1. `MERGE` the `SemanticStateMap` node
 2. For each new `UIState`, `MERGE` the state node and `MERGE` the `HAS_STATE` relationship
-3. For states that no longer appear in the new map, set their `status` to `deprecated` — do not delete them, because runs and healing events may still reference them
+3. For states that no longer appear in the new map, set their `status` to `deprecated` â€” do not delete them, because runs and healing events may still reference them
 
 ---
 
@@ -1960,4 +1946,4 @@ The knowledge graph should model the platform as a connected system of:
 
 That gives you full traceability from:
 
-## source artifact → chunk → requirement/flow/page/state/transition/API → test → run → evidence/healing → defect/playbook → review → learning
+## source artifact â†’ chunk â†’ requirement/flow/page/state/transition/API â†’ test â†’ run â†’ evidence/healing â†’ defect/playbook â†’ review â†’ learning

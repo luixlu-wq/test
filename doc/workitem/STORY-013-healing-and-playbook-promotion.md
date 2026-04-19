@@ -49,6 +49,9 @@ Implement healing analysis and controlled promotion of approved deterministic pl
 - `TC-S11-002` — Unapproved healing cannot modify approved `test_asset` rows
 - `TC-S11-003` — Promoted playbook eligible for regression; non-promoted playbook rejected with `PLAYBOOK_NOT_PROMOTED`
 - `TC-S11-004` — Approval workflow: `candidate → approved → promoted` lifecycle enforced correctly
+- `TCN-S11-001` — Low-confidence healing proposal cannot be auto-promoted under any regression policy profile
+- `TCN-S11-002` — Stale fingerprint-version reference fails promotion validation
+- `TCE-S11-001` — Competing healing candidates resolve by deterministic rank and approval state
 
 ## Definition of Done
 
@@ -58,7 +61,7 @@ Implement healing analysis and controlled promotion of approved deterministic pl
 - [ ] Promotion to `test_asset` creates immutable asset record
 - [ ] Regression mode gate enforces `promoted` status
 - [ ] Fingerprint drift penalty applied to healing confidence
-- [ ] `TC-S11-001` through `TC-S11-004` pass; LLM calls stubbed in `ci` profile
+- [ ] `TC-S11-001` through `TC-S11-004`, `TCN-S11-001`, `TCN-S11-002`, `TCE-S11-001` pass; LLM calls stubbed in `ci` profile
 - [ ] PR reviewed and merged; CI green
 
 ## Owner

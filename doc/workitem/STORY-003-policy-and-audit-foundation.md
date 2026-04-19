@@ -45,6 +45,8 @@ Implement policy decision evaluation and a complete audit trail for every major 
 
 - `TC-S1-003` — Policy evaluator returns complete decision struct; `review` decision creates approval task
 - `TC-S1-004` — Audit records emitted for stage transition; filtered query by `correlation_id` returns correct records
+- `TCN-S1-003` — Policy-denied action returns deterministic `POLICY_DENIED` error contract with `retryable=false`
+- `TCE-S1-002` — Duplicate audit writes for the same idempotent event are deduplicated while preserving correlation traceability
 
 ## Definition of Done
 
@@ -52,8 +54,9 @@ Implement policy decision evaluation and a complete audit trail for every major 
 - [ ] `ApprovalTaskService.create_from_decision(decision)` creates approval task on `review` decisions
 - [ ] Audit hook fires on every stage transition and MCP invocation
 - [ ] `audit_log` indexed on `correlation_id`, `request_id`, `run_id`
-- [ ] `TC-S1-003` and `TC-S1-004` pass in `integration` profile
+- [ ] `TC-S1-003`, `TC-S1-004`, `TCN-S1-003`, `TCE-S1-002` pass in `integration` profile
 - [ ] Audit records survive transaction rollback of the audited action (written in separate transaction)
+- [ ] Client-visible policy/audit failures never include stack traces or secrets
 - [ ] PR reviewed and merged; CI green
 
 ## Owner

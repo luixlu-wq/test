@@ -46,12 +46,14 @@ Implement request deduplication keying and replay-safe behavior in intake path.
 ## Test Cases
 
 - `TC-S1-001` — Duplicate intake returns same `workflow_id`; `test_request` table has exactly 1 row after 2 identical submissions
+- `TCN-S2-001` — Concurrent duplicate-key insert race fails cleanly with no partial dependent rows
+- `TCE-S1-001` — 100 repeated identical trigger deliveries produce one workflow branch only
 
 ## Definition of Done
 
 - [ ] `compute_dedup_key(case_ref, trigger_source, params)` function implemented and unit-tested with at least 3 param-ordering variants
 - [ ] DB lookup path handles concurrent insert race (ON CONFLICT or equivalent)
-- [ ] `TC-S1-001` passes in `integration` profile
+- [ ] `TC-S1-001`, `TCN-S2-001`, `TCE-S1-001` pass in `integration` profile
 - [ ] Unit tests pass in `ci` profile (SQLite, no external calls)
 
 ## Owner

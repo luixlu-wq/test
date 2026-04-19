@@ -48,12 +48,15 @@ Build and validate the first operational data schema required for end-to-end cor
 - `TC-S2-002` — FK violation raised on orphaned `test_run` insert
 - `TC-S2-003` — Repository roundtrip: create → read → update relationships for `test_request → test_workflow → test_run → evidence_item`
 - `TC-S2-004` — Retention marker preserved after blob null-out; metadata row queryable
+- `TCN-S2-001` — Duplicate unique-key insert race fails cleanly with no partial dependent rows
+- `TCN-S2-002` — Simulated DB connection loss during transaction triggers rollback and retry-safe behavior
+- `TCE-S2-001` — Concurrent writes to same request/run maintain referential integrity and deterministic final state
 
 ## Definition of Done
 
 - [ ] All migration files committed with both `upgrade` and `downgrade` paths
 - [ ] Migration smoke test passes on PostgreSQL ephemeral (CI Stage 2)
-- [ ] `TC-S2-001` through `TC-S2-004` pass in `integration` profile
+- [ ] `TC-S2-001` through `TC-S2-004`, `TCN-S2-001`, `TCN-S2-002`, `TCE-S2-001` pass in `integration` profile
 - [ ] FK indexes and composite indexes present (verified by migration test)
 - [ ] `retention_tier` column exists from day 1
 - [ ] Soft-delete (`deleted_at`) columns on all operational tables

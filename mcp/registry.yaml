@@ -1,0 +1,33 @@
+﻿mcps:
+  filesystem:
+    version: v1.0.0
+  document_parser:
+    version: v1.0.0
+  browser_reader:
+    version: v1.0.0
+  state_map:
+    version: v1.0.0
+  mismatch_detection:
+    version: v1.0.0
+  retrieval:
+    version: v1.0.0
+  graph_expansion:
+    version: v1.0.0
+  context_pack:
+    version: v1.0.0
+  browser_automation:
+    version: v1.0.0
+  api_runner:
+    version: v1.0.0
+  evidence:
+    version: v1.0.0
+  healing:
+    version: v1.0.0
+  playbook:
+    version: v1.0.0
+  state_management:
+    version: v1.0.0
+  test_asset:
+    version: v1.0.0
+  trigger:
+    version: v1.0.0

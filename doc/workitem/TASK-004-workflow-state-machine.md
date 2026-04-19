@@ -53,6 +53,9 @@ Implement workflow stage state machine with retry safety and resumable execution
 ## Test Cases
 
 - `TC-S1-002` — Invalid transition attempt is rejected; valid retry path is idempotent and does not duplicate side-effects
+- `TCN-S1-001` — Out-of-order stage event is rejected and audited as invalid transition
+- `TCN-S1-002` — Stale approval/state response is rejected with no mutation
+- `TCE-S1-001` — Duplicate event delivery with same event ID is idempotent and does not branch workflow state
 
 ## Definition of Done
 
@@ -60,7 +63,7 @@ Implement workflow stage state machine with retry safety and resumable execution
 - [ ] Idempotent re-transition returns existing record without error
 - [ ] `attempt_count` incremented only on `failed → pending` (retry); not on server restart reset
 - [ ] Audit log row written on every non-idempotent transition
-- [ ] `TC-S1-002` passes in `integration` profile
+- [ ] `TC-S1-002`, `TCN-S1-001`, `TCN-S1-002`, `TCE-S1-001` pass in `integration` profile
 - [ ] Unit tests cover all transition edges in `ci` profile
 
 ## Owner

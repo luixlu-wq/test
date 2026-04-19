@@ -49,6 +49,9 @@ Implement deterministic run execution, state setup/cleanup, and forensic evidenc
 - `TC-S9-002` — Cleanup executes on fail path; run result not overridden by cleanup failure
 - `TC-S9-003` — Finalized evidence rejects writes with `EVIDENCE_IMMUTABILITY_VIOLATION`
 - `TC-S9-004` — `evidence_hash` matches SHA-256 of bundle manifest contents
+- `TCN-S9-001` — Worker crash mid-run transitions run to recoverable failed state with partial evidence markers
+- `TCN-S9-002` — Evidence storage write failure triggers retry and preserves run-step status consistency
+- `TCE-S9-001` — Rerun on same run id is blocked or idempotently resumed per policy
 
 ## Definition of Done
 
@@ -56,8 +59,9 @@ Implement deterministic run execution, state setup/cleanup, and forensic evidenc
 - [ ] State setup/cleanup scripts execute in correct order
 - [ ] `EvidenceFinalizer.finalize(run_id)` sets `evidence_finalized = True` and computes `evidence_hash`
 - [ ] Write-block enforced for finalized evidence
-- [ ] `TC-S9-001` through `TC-S9-004` pass in `integration` profile
+- [ ] `TC-S9-001` through `TC-S9-004`, `TCN-S9-001`, `TCN-S9-002`, `TCE-S9-001` pass in `integration` profile
 - [ ] Playwright calls stubbed in `ci` profile
+- [ ] Negative-path tests use deterministic failpoints (worker crash, blob write timeout)
 - [ ] PR reviewed and merged; CI green
 
 ## Owner

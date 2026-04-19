@@ -1,10 +1,4 @@
-I don’t see the Gemini review text in your message, so I can’t map changes to each comment one by one. I used your uploaded Part 4 as the source and strengthened the areas that most likely need refinement in line with the rest of the architecture: native state-aware execution, stricter diagnostic vs regression behavior, stronger forensic evidence hooks, clearer healing governance, and stronger playbook hardening. 
-
-Below is the **rewritten Part 4 — Playwright Hybrid Framework**, kept full-length and aligned to the final architecture.
-
----
-
-# Part 4 — Playwright Hybrid Framework
+﻿# Part 4 â€” Playwright Hybrid Framework
 
 ## AI QA Platform
 
@@ -64,7 +58,7 @@ The uploaded version already had the right direction. The main strengthening in 
 
 # 2. Core design principle
 
-## 2.1 AI should author, discover, and explain — not replace the runtime
+## 2.1 AI should author, discover, and explain â€” not replace the runtime
 
 At runtime, the browser should be controlled by:
 
@@ -809,8 +803,8 @@ The runtime should prefer **state-aware assertions** over shallow browser checks
 
 That means:
 
-* not just “URL changed”
-* but “expected semantic state was reached”
+* not just â€œURL changedâ€
+* but â€œexpected semantic state was reachedâ€
 
 ---
 
@@ -1286,19 +1280,19 @@ Graph-RAG, state-map, and playbook logic should stay out of raw test bodies as m
 
 ## 19.1 Three assertion levels
 
-### Level 1 — Technical assertions
+### Level 1 â€” Technical assertions
 
 * element visible
 * URL contains
 * status code is 200
 
-### Level 2 — Semantic UI assertions
+### Level 2 â€” Semantic UI assertions
 
 * login error shown
 * dashboard loaded
 * upload completed
 
-### Level 3 — Business and state outcome assertions
+### Level 3 â€” Business and state outcome assertions
 
 * user authenticated successfully
 * registration completed

@@ -47,14 +47,17 @@ Implement filesystem MCP read/write operations with policy-safe path checks.
 ## Test Cases
 
 - `TC-S3-001` — Traversal attempt blocked; valid read returns complete `auditDetail`
+- `TCN-S3-001` — Unsupported filesystem operation returns structured error contract without side effects
+- `TCE-S3-001` — Large file read respects configured limits and emits overflow warning metadata
 
 ## Definition of Done
 
 - [ ] All three operations implemented with shared envelope middleware
 - [ ] Path normalization + root-escape check covers `..`, `~`, null bytes, and symlink escapes
 - [ ] `policyContext` checked before any file I/O
-- [ ] `TC-S3-001` passes in `integration` profile
+- [ ] `TC-S3-001`, `TCN-S3-001`, `TCE-S3-001` pass in `integration` profile
 - [ ] Unit tests for path normalization edge cases pass in `ci` profile
+- [ ] Error payload contract validated: `errorCode`, `message`, `retryable`, `correlationId`
 
 ## Owner
 

@@ -46,13 +46,15 @@ Define and apply canonical constants for execution mode and major lifecycle stat
 ## Test Cases
 
 - `TC-S0-002` — CI grep audit finds zero enum literals outside constants module
+- `TCN-S0-003` — Unknown enum literal in fixture is rejected by schema validator
+- `TCE-S0-002` — Enum serialization/deserialization is deterministic across repeated runs
 
 ## Definition of Done
 
 - [ ] `enums.py` defines `ExecutionMode`, `WorkflowStatus`, `StageStatus`, `RunStatus`, `ArtifactType`, `MismatchSeverity`
 - [ ] All service and test files updated to import from constants module
 - [ ] Grep-based CI audit step passes (no stray literals)
-- [ ] `TC-S0-002` passes in `ci` profile
+- [ ] `TC-S0-002`, `TCN-S0-003`, `TCE-S0-002` pass in `ci` profile
 
 ## Owner
 

@@ -47,13 +47,15 @@ Implement policy evaluator for action authorization, escalation requirements, an
 ## Test Cases
 
 - `TC-S1-003` — Policy evaluator returns complete decision struct for allowed, denied, and review-required actions
+- `TCN-S1-003` — Denied action returns policy-specific `POLICY_DENIED` code (not generic validation code)
+- `TCE-S1-003` — Re-evaluating identical action/context returns deterministic decision and threshold
 
 ## Definition of Done
 
 - [ ] `PolicyEvaluator` implemented with `evaluate()` and `explain()` methods
 - [ ] All five decision fields present and schema-validated in every return
 - [ ] Policy rules loaded from YAML; unit tests use in-memory rule fixtures (no file I/O dependency)
-- [ ] `TC-S1-003` passes in `ci` profile (no external calls required)
+- [ ] `TC-S1-003`, `TCN-S1-003`, `TCE-S1-003` pass in `ci` profile (no external calls required)
 - [ ] Edge cases tested: unknown action type, missing profile, PROD + diagnostic mode
 
 ## Owner

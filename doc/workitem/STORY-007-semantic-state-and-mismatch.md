@@ -49,13 +49,16 @@ Implement state-map and mismatch services to detect contradictions and enforce e
 - `TC-S5-002` — Mismatch includes complete `source_refs`, `severity`, `mismatch_type`
 - `TC-S5-003` — Blocking mismatch prevents execution stage start; error includes mismatch `id`
 - `TC-S5-004` — State map fingerprint stable for same set of visible elements regardless of DOM order
+- `TCN-S5-001` — Cyclic/self-loop transition input is rejected by state validator
+- `TCN-S5-002` — Mismatch output missing source refs is rejected by output contract validation
+- `TCE-S5-001` — High-volume mismatch set preserves deterministic severity ordering
 
 ## Definition of Done
 
 - [ ] `SemanticStateMapGenerator.generate(case_id, snapshot_version)` produces deterministic output
 - [ ] `MismatchDetector` emits `MismatchWarning` nodes with all required fields
 - [ ] Blocking signal wired into workflow stage state machine (TASK-004)
-- [ ] `TC-S5-001` through `TC-S5-004` pass in `integration` profile
+- [ ] `TC-S5-001` through `TC-S5-004`, `TCN-S5-001`, `TCN-S5-002`, `TCE-S5-001` pass in `integration` profile
 - [ ] Graph MERGE semantics verified (no duplicate nodes on re-run)
 - [ ] LLM calls stubbed in `ci` profile
 - [ ] PR reviewed and merged; CI green

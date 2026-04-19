@@ -47,6 +47,8 @@ Implement audit logging with request/run/task/tool correlation IDs.
 ## Test Cases
 
 - `TC-S1-004` — Stage transition emits audit log; `by_correlation()` returns the row with correct `before_state` / `after_state`
+- `TCN-S1-004` — Invalid/failed action path still emits auditable row with correlation ID
+- `TCE-S1-004` — Duplicate idempotent event does not produce duplicate audit records while preserving replay traceability
 
 ## Definition of Done
 
@@ -54,7 +56,7 @@ Implement audit logging with request/run/task/tool correlation IDs.
 - [ ] Audit write uses isolated DB session (not wrapped in audited action transaction)
 - [ ] Hook registered for: stage transitions, MCP calls, policy decisions, approval state changes
 - [ ] Correlation ID middleware generates UUID if header absent and attaches to response
-- [ ] `TC-S1-004` passes in `integration` profile
+- [ ] `TC-S1-004`, `TCN-S1-004`, `TCE-S1-004` pass in `integration` profile
 - [ ] Index existence verified by migration smoke test
 
 ## Owner

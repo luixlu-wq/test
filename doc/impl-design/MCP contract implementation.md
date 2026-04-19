@@ -1,10 +1,4 @@
-I adopted most of Gemini’s comments and ignored only the part that tried to hardcode one universal review threshold. The right design is to make the threshold **policy-driven**, while still returning the threshold used in the Healing MCP response. The rest of the comments are strong and improve the document: clear separation of reasoning vs action, stronger Semantic Trace emphasis, graph-assisted impact analysis for triggers, and shared visual-anchor logic between Browser Reader and Healing. The original document already had the right foundation for the 16-MCP set, common envelope, dual-mode execution, and state-map-centered design. 
-
-Below is the **rewritten MCP contract implementation document**, aligned to the final architecture and explicitly describing **all required MCPs**.
-
----
-
-# Part 1 — MCP Contracts
+﻿# Part 1 â€” MCP Contracts
 
 ## AI QA Platform
 
@@ -27,7 +21,7 @@ The platform must strictly separate:
 * **agents**, which provide reasoning, planning, mapping, and judgment
 * **MCP tools**, which provide controlled access to files, browser state, execution, evidence, graph context, test state, and persistence
 
-This separation prevents “hallucinated actions” because no agent can act outside:
+This separation prevents â€œhallucinated actionsâ€ because no agent can act outside:
 
 * approved operations
 * approved schemas
@@ -58,9 +52,9 @@ The MCP layer must make all important platform capabilities:
 * compatible with distributed understanding
 * compatible with Graph-RAG
 * compatible with semantic state maps
-* compatible with diagnostic and regression execution modes
+* compatible with `draft` (pre-dispatch), `diagnostic`, and `regression` execution semantics
 
-It must support the final architecture’s major ideas:
+It must support the final architectureâ€™s major ideas:
 
 * manual folder-first ingestion
 * browser-readable source ingestion
@@ -131,6 +125,7 @@ All MCP tools should use the same request/response/error envelope.
 ```json
 {
   "toolCallId": "TOOL-9001",
+  "mcpVersion": "v1.2.0",
   "status": "success",
   "timestamp": "2026-04-18T14:10:02Z",
   "data": {},
@@ -148,6 +143,7 @@ All MCP tools should use the same request/response/error envelope.
 ```json
 {
   "toolCallId": "TOOL-9001",
+  "mcpVersion": "v1.2.0",
   "status": "error",
   "error": {
     "code": "FILE_NOT_FOUND",
@@ -178,17 +174,17 @@ Every tool request should support:
 
 ### Auth profile resolution
 
-The `authProfile` field is a **string key** — never a credential value. Credentials are never passed through the MCP envelope or stored in agent inputs.
+The `authProfile` field is a **string key** â€” never a credential value. Credentials are never passed through the MCP envelope or stored in agent inputs.
 
 Resolution flow:
 
 1. The MCP implementation receives `authProfile: "uat-service-account"` in the request.
-2. It resolves the key at call time against the platform's **credential store** (environment variable set, secrets manager, or encrypted config — determined by the deployment profile: `local-dev` uses env vars; `uat`/`ist`/`prod` use a secrets manager such as AWS Secrets Manager or HashiCorp Vault).
+2. It resolves the key at call time against the platform's **credential store** (environment variable set, secrets manager, or encrypted config â€” determined by the deployment profile: `local-dev` uses env vars; `uat`/`ist`/`prod` use a secrets manager such as AWS Secrets Manager or HashiCorp Vault).
 3. The resolved credential is used for the operation and is **never logged, returned, or included in any output payload**.
-4. If the `authProfile` key cannot be resolved, the MCP must return `error.code = "AUTH_PROFILE_NOT_FOUND"` — it must not silently fall back to unauthenticated access.
+4. If the `authProfile` key cannot be resolved, the MCP must return `error.code = "AUTH_PROFILE_NOT_FOUND"` â€” it must not silently fall back to unauthenticated access.
 5. `permissionsScope` is checked after resolution to ensure the resolved credential is authorized for the requested `environment` and operation type. If scope check fails, return `error.code = "PERMISSION_DENIED"`.
 
-The mapping of `authProfile` key → credential reference lives in `environment_profile.auth_profile` (data model section 32.1). MCPs must not maintain their own credential registries.
+The mapping of `authProfile` key â†’ credential reference lives in `environment_profile.auth_profile` (data model section 32.1). MCPs must not maintain their own credential registries.
 
 ## 4.2 Provenance fields
 
@@ -236,14 +232,25 @@ Healing-related outputs should also support:
 * `reviewThresholdUsed`
 * `requiresReview`
 
-This adopts Gemini’s idea, but with the threshold driven by policy rather than hardcoded globally.
+This adopts Geminiâ€™s idea, but with the threshold driven by policy rather than hardcoded globally.
 
 ## 4.6 Execution mode support
 
 Execution-related tools must respect:
 
+* `draft`
 * `diagnostic`
 * `regression`
+
+### Draft mode
+
+Used for pre-dispatch preparation only (asset preparation, retrieval/context build, validation).
+
+Rules:
+
+* execution MCPs (`Browser Automation MCP`, `API Runner MCP`) must reject direct run attempts in `draft` mode
+* preparation MCPs may process draft inputs
+* transitioning from `draft` to runnable state is controlled by orchestration + policy
 
 ### Diagnostic mode
 
@@ -286,12 +293,12 @@ This should be used consistently by:
 
 That creates one visual language between:
 
-* what the system “sees” while reading requirements
-* what the system “sees” while healing runtime UI shifts
+* what the system â€œseesâ€ while reading requirements
+* what the system â€œseesâ€ while healing runtime UI shifts
 
 ## 4.8 Timeout contracts
 
-Every MCP operation must have a defined timeout. If the operation does not complete within the timeout, the MCP returns `error.code = “TIMEOUT”` with `retryable: true`. The caller (Agent Runtime Service or Orchestration Service) is responsible for retry logic — the MCP does not retry internally.
+Every MCP operation must have a defined timeout. If the operation does not complete within the timeout, the MCP returns `error.code = â€œTIMEOUTâ€` with `retryable: true`. The caller (Agent Runtime Service or Orchestration Service) is responsible for retry logic â€” the MCP does not retry internally.
 
 | MCP                    | Default timeout | Notes                                                                          |
 | ---------------------- | --------------- | ------------------------------------------------------------------------------ |
@@ -561,7 +568,7 @@ Generate and manage the **semantic state map** from fused artifacts.
 
 ## Why it matters
 
-This is the “common knowledge” layer that keeps understanding, mapping, and execution synchronized.
+This is the â€œcommon knowledgeâ€ layer that keeps understanding, mapping, and execution synchronized.
 
 ---
 
@@ -659,7 +666,7 @@ Provide bounded graph traversal to enrich retrieval and support impact analysis.
 * traverse bounded relationship sets
 * support lineage lookup
 * support impact analysis
-* expand requirement ↔ state ↔ page ↔ API ↔ test neighborhoods
+* expand requirement â†” state â†” page â†” API â†” test neighborhoods
 * avoid unbounded graph walks
 
 ## Operations
@@ -902,7 +909,7 @@ The semantic trace is a first-class forensic artifact. It is the chain-of-eviden
 | `trace.observedOutcome.confidence`   | No       | Confidence that the observed outcome matches the expected outcome               |
 | `trace.observedOutcome.evidenceRefs` | Yes      | At least one screenshot or DOM snapshot evidence ref must be included          |
 | `trace.verdict`                      | Yes      | `pass`, `fail`, `skip`                                                         |
-| `trace.notes`                        | No       | Free text — e.g. state signal timing, healing decision notes                  |
+| `trace.notes`                        | No       | Free text â€” e.g. state signal timing, healing decision notes                  |
 
 A semantic trace record must be written for every `RunStep` where `action_type = "assert"` or `action_type = "wait_for_state_signal"`. It is optional but recommended for `click` and `fill` steps on critical paths.
 
@@ -1228,7 +1235,7 @@ Every MCP operation response includes a `mcpVersion` field in the response envel
 ```json
 {
   "toolCallId": "TOOL-9001",
-  "mcpVersion": "1.2.0",
+  "mcpVersion": "v1.2.0",
   "status": "success",
   "timestamp": "...",
   "data": {}
@@ -1243,7 +1250,7 @@ MCP contracts use **semantic versioning**: `vMAJOR.MINOR.PATCH`.
 
 | Increment | When to use                                                                                             |
 | --------- | ------------------------------------------------------------------------------------------------------- |
-| `PATCH`   | Internal fix — no change to request or response schema. Callers need not update.                       |
+| `PATCH`   | Internal fix â€” no change to request or response schema. Callers need not update.                       |
 | `MINOR`   | New optional request fields or new optional response fields added. Backward-compatible. Callers may ignore new fields. |
 | `MAJOR`   | Required request fields added, response fields removed or renamed, operation behavior semantically changed. Callers must update. |
 
@@ -1291,19 +1298,19 @@ The recommended first build steps are:
 
 1. **Filesystem MCP**
 2. **Document Parser MCP**
+3. **Trigger MCP**
 
 Then:
-3. Browser Reader MCP
-4. State Map MCP
-5. Mismatch Detection MCP
-6. Retrieval + Graph Expansion + Context Pack MCPs
-7. Browser Automation + API Runner MCPs
-8. Evidence MCP
-9. Healing MCP
-10. Playbook MCP
-11. State Management MCP
-12. Test Asset MCP
-13. Trigger MCP
+4. Browser Reader MCP
+5. State Map MCP
+6. Mismatch Detection MCP
+7. Retrieval + Graph Expansion + Context Pack MCPs
+8. Browser Automation + API Runner MCPs
+9. Evidence MCP
+10. Healing MCP
+11. Playbook MCP
+12. State Management MCP
+13. Test Asset MCP
 
 That build order is correct for the final architecture.
 
@@ -1311,7 +1318,7 @@ That build order is correct for the final architecture.
 
 # 25. Final summary
 
-This MCP layer is the governed “language of quality” for the platform.
+This MCP layer is the governed â€œlanguage of qualityâ€ for the platform.
 
 It gives you:
 

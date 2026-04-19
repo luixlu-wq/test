@@ -39,6 +39,7 @@ Lock contracts and build the platform backbone with durable persistence and audi
 |---|---|---|---|
 | `TASK-001-schema-package-and-fixtures.md` | `STORY-001-contract-and-enum-lock.md` | todo | TBD |
 | `TASK-002-canonical-enum-constants.md` | `STORY-001-contract-and-enum-lock.md` | todo | TBD |
+| `TASK-015-tdr-registry-and-decision-records.md` | `STORY-001-contract-and-enum-lock.md` | todo | TBD |
 | `TASK-003-request-dedup-key.md` | `STORY-002-request-trigger-orchestration.md` | todo | TBD |
 | `TASK-004-workflow-state-machine.md` | `STORY-002-request-trigger-orchestration.md` | todo | TBD |
 | `TASK-005-policy-decision-evaluator.md` | `STORY-003-policy-and-audit-foundation.md` | todo | TBD |

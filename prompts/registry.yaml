@@ -1,0 +1,37 @@
+﻿agents:
+  intake-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  artifact-ingestion-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  case-understanding-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  requirement-mapping-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  risk-strategy-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  test-authoring-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  failure-triage-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  defect-drafting-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  healing-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  playbook-recommendation-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  review-recommendation-agent:
+    production: v1.0.0
+    staging: v1.0.0
+  learning-agent:
+    production: v1.0.0
+    staging: v1.0.0

@@ -1,10 +1,4 @@
-I don’t see the Gemini review text in your message, so I can’t apply comment-by-comment edits literally. I used your uploaded Part 5 as the baseline and tightened the areas that most often need improvement in a production prompt system: stronger anti-hallucination boundaries, clearer fact-vs-inference rules, stronger review-gate language, stronger confidence discipline, tighter mode separation, and better prompt contracts for evidence, mismatch, healing, and playbook decisions. 
-
-Below is the **rewritten Part 5 — Agent Prompts**, kept full-length and aligned to the final architecture.
-
----
-
-# Part 5 — Agent Prompts
+﻿# Part 5 â€” Agent Prompts
 
 ## AI QA Platform
 
@@ -1371,7 +1365,7 @@ Return:
 
 ### Purpose
 
-Decide whether a diagnostic run’s discoveries should be exported or promoted into a deterministic playbook.
+Decide whether a diagnostic runâ€™s discoveries should be exported or promoted into a deterministic playbook.
 
 ### Responsibilities
 
@@ -1691,7 +1685,7 @@ If invalid:
 
 # 17. LLM provider and model selection
 
-The platform commits to the **Anthropic Claude API** as the LLM provider for all agents. This is not a recommendation — it is the committed choice recorded in the architectural design (Section 29 — Platform Technology Profile).
+The platform commits to the **Anthropic Claude API** as the LLM provider for all agents. This is not a recommendation â€” it is the committed choice recorded in the architectural design (Section 29 â€” Platform Technology Profile).
 
 ## 17.1 Committed models
 
@@ -1704,13 +1698,13 @@ The platform commits to the **Anthropic Claude API** as the LLM provider for all
 ## 17.2 Model selection rules
 
 * All agent tasks default to `claude-sonnet-4-6`. No agent may deviate without an explicit `modelId` set in the agent task configuration.
-* Escalating to `claude-opus-4-6` requires a documented reason in the agent task record — cost-blind escalation is not permitted.
+* Escalating to `claude-opus-4-6` requires a documented reason in the agent task record â€” cost-blind escalation is not permitted.
 * `claude-haiku-4-5-20251001` must never be used for any task whose output drives a human approval decision.
-* If the Anthropic API is unavailable, the platform must surface a `model_unavailable` error — no silent fallback to a different provider without an explicit operator override authorized under the active policy profile.
+* If the Anthropic API is unavailable, the platform must surface a `model_unavailable` error â€” no silent fallback to a different provider without an explicit operator override authorized under the active policy profile.
 
 ## 17.3 Model version pinning
 
-The model ID stored in `agent_task_execution.model_profile` must be the **exact API model identifier** (`claude-sonnet-4-6`), never an alias (`sonnet`, `latest`). When Anthropic releases a new model version, a prompt compatibility review is required before the new ID is used in production tasks.
+The model ID stored in `agent_task_execution.model_id` must be the **exact API model identifier** (`claude-sonnet-4-6`), never an alias (`sonnet`, `latest`). `model_profile` may be stored as an optional routing/analytics alias, but it is not the source of truth for reproducibility. When Anthropic releases a new model version, a prompt compatibility review is required before the new ID is used in production tasks.
 
 ---
 
@@ -1730,7 +1724,7 @@ Prompts use **semantic versioning**: `vMAJOR.MINOR.PATCH`.
 
 | Increment | When to use                                                                                              |
 | --------- | -------------------------------------------------------------------------------------------------------- |
-| `PATCH`   | Wording improvements, clarity fixes — no change to output schema or reasoning behavior                  |
+| `PATCH`   | Wording improvements, clarity fixes â€” no change to output schema or reasoning behavior                  |
 | `MINOR`   | New output fields added (backward-compatible), new guardrails, new context section handled              |
 | `MAJOR`   | Output schema breaking change, core reasoning behavior changed, agent scope changed, model switched      |
 
@@ -1772,7 +1766,7 @@ The Agent Runtime Service reads `registry.yaml` at startup and resolves prompt b
 ## 18.4 Promotion workflow
 
 ```
-development → staging → production
+development â†’ staging â†’ production
 ```
 
 | Stage       | Who                 | What happens                                                                                                     |
@@ -1781,7 +1775,7 @@ development → staging → production
 | staging     | QA / platform owner | Prompt runs against golden context packs. Output quality reviewed against baselines. Validation must pass 100%. |
 | production  | Platform owner      | `registry.yaml` production pointer updated. Previous version file retained on disk for rollback.                |
 
-A prompt version file is **never deleted** once it has been used in production — it is archived even when removed from the registry.
+A prompt version file is **never deleted** once it has been used in production â€” it is archived even when removed from the registry.
 
 ## 18.5 Golden set evaluation
 
@@ -1790,7 +1784,7 @@ Before promotion to staging, a prompt version must pass a golden set evaluation:
 * Each agent maintains a minimum of 5 golden context packs under `api/prompts/<agent-name>/golden/`.
 * Each golden pack has a corresponding expected output: `api/prompts/<agent-name>/golden/<id>.expected.json`.
 * The evaluation runner calls the agent with each golden pack and diffs output against expected: schema validity, required field presence, confidence range, source refs presence.
-* `MINOR` bump: ≥ 80% pass rate required before staging promotion.
+* `MINOR` bump: â‰¥ 80% pass rate required before staging promotion.
 * `MAJOR` bump: full manual review of all golden cases required.
 
 ## 18.6 Metadata stored with every agent output
@@ -1814,13 +1808,13 @@ When a `MAJOR` version bump changes the output schema:
 
 1. The new output schema must be registered in the output validator before the new version reaches staging.
 2. Downstream services consuming the output must be updated before or simultaneously with production promotion.
-3. Old output records in the relational store are **not migrated** — they remain with their original schema version; consumers must handle both versions.
+3. Old output records in the relational store are **not migrated** â€” they remain with their original schema version; consumers must handle both versions.
 
 ---
 
 # 19. Anti-patterns to avoid
 
-## 18.1 One giant master prompt
+## 19.1 One giant master prompt
 
 Bad because:
 
@@ -1829,23 +1823,23 @@ Bad because:
 * harder debugging
 * less predictable outputs
 
-## 18.2 Unbounded free-form answers
+## 19.2 Unbounded free-form answers
 
 Bad because orchestration needs structured outputs.
 
-## 18.3 Prompts with direct action authority
+## 19.3 Prompts with direct action authority
 
 Bad because governance must remain external to the model.
 
-## 18.4 Prompts without source refs
+## 19.4 Prompts without source refs
 
 Bad because traceability becomes weak.
 
-## 18.5 Passing secrets into prompts
+## 19.5 Passing secrets into prompts
 
 Bad for security and auditing.
 
-## 18.6 Passing raw full retrieval dumps into prompts
+## 19.6 Passing raw full retrieval dumps into prompts
 
 Bad because:
 
@@ -1856,11 +1850,11 @@ Bad because:
 
 Use compact context packs instead.
 
-## 18.7 Letting diagnostic logic leak into regression decisions
+## 19.7 Letting diagnostic logic leak into regression decisions
 
 Bad because regression mode must remain stable and predictable.
 
-## 18.8 Letting history dominate evidence
+## 19.8 Letting history dominate evidence
 
 Bad because it causes false certainty and weak triage.
 
@@ -1892,7 +1886,7 @@ This is still the right initial set.
 
 # 21. Final prompt design summary
 
-Your platform’s agent prompts should be:
+Your platformâ€™s agent prompts should be:
 
 * role-specific
 * source-grounded
@@ -1910,4 +1904,4 @@ Your platform’s agent prompts should be:
 
 The most important design choice remains:
 
-## Use many narrow production prompts that consume bounded context packs, semantic state refs, evidence refs, and policy constraints — not one broad AI QA super-prompt.
+## Use many narrow production prompts that consume bounded context packs, semantic state refs, evidence refs, and policy constraints â€” not one broad AI QA super-prompt.

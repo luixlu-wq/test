@@ -1,19 +1,4 @@
-I agree with most of Gemini’s comments. The best updates are:
-
-* make the **distributed understanding split** even more explicit as a deliberate anti-hallucination design
-* make **reranking** in Retrieval Service a required internal subcomponent, not just an optional implementation detail
-* strengthen **Browser Worker** so state-aware assertions and React-ready signals are clearly native runtime behavior
-* strengthen **Triage & Confidence Service** so confidence scoring and reasoning-backed explanation are explicit first-class outputs
-* reinforce **Playbook Service** as the hardening layer between diagnostic discovery and deterministic regression
-* emphasize **Evidence Service schema** as a core dependency for fast debugging and reliable HITL review
-
-I did **not** change the architecture shape dramatically, because the service design was already strong. The comments mostly sharpen and clarify the existing design rather than replace it. The original Part 2 already had the right service boundaries, Graph-RAG ownership, execution split, and forensic evidence direction. 
-
-Below is the **rewritten Part 2 — Service Design**, updated with the comments I think are correct.
-
----
-
-# Part 2 — Service Design
+﻿# Part 2 â€” Service Design
 
 ## AI QA Platform
 
@@ -33,7 +18,7 @@ This version matches the final architecture with:
 * semantic state maps
 * requirement mismatch detection
 * hybrid Graph-RAG
-* deterministic and diagnostic execution modes
+* draft + diagnostic + regression execution semantics (with deterministic enforcement for regression)
 * forensic self-healing
 * forensic-grade evidence
 * local shift-left triggers
@@ -71,7 +56,7 @@ The service design must achieve these goals:
 
 The most important service-level decision is the **strict separation of distributed understanding responsibilities**.
 
-Instead of one overloaded “intake” or “analysis” service, the design deliberately separates:
+Instead of one overloaded â€œintakeâ€ or â€œanalysisâ€ service, the design deliberately separates:
 
 * **Distributed Understanding Service** for ingestion, normalization, artifact fusion, and case understanding
 * **Semantic State Service** for generating semantic state maps, transitions, and fingerprints
@@ -407,7 +392,7 @@ Central workflow coordinator for the whole QA lifecycle.
 * apply retry and timeout rules
 * coordinate approvals
 * maintain run-level workflow context
-* manage mode transitions between diagnostic and regression logic
+* manage mode transitions from `draft` (pre-dispatch) to `diagnostic` or `regression` execution logic
 * produce final summary
 
 ### Main workflow stages
@@ -590,7 +575,7 @@ Stores:
 * preserve source refs
 * support later linkage to visual diff and playbook export
 
-This service should continue to be the technical “common knowledge” layer for the platform.
+This service should continue to be the technical â€œcommon knowledgeâ€ layer for the platform.
 
 ---
 
@@ -1036,7 +1021,7 @@ When diagnostic mode discovers:
 * stable transition timing
 * repeatable safe execution paths
 
-this service should export them into a deterministic playbook so regression mode does not have to “rethink” the same problem.
+this service should export them into a deterministic playbook so regression mode does not have to â€œrethinkâ€ the same problem.
 
 ### Outputs
 
@@ -1073,9 +1058,9 @@ When multiple runs execute against the same environment simultaneously, data col
 
 Isolation strategies, applied in priority order:
 
-1. **Tenant or namespace isolation** — each run receives a unique namespace prefix or scoped test tenant where the environment supports it (preferred)
-2. **Account-per-run isolation** — each run creates a dedicated scoped test account (e.g. `testuser-RUN-3001@test.example.com`)
-3. **Sequential execution gate** — if the environment cannot support parallel data isolation, a concurrency limit of 1 is enforced for that environment profile; subsequent runs queue until the prior run releases
+1. **Tenant or namespace isolation** â€” each run receives a unique namespace prefix or scoped test tenant where the environment supports it (preferred)
+2. **Account-per-run isolation** â€” each run creates a dedicated scoped test account (e.g. `testuser-RUN-3001@test.example.com`)
+3. **Sequential execution gate** â€” if the environment cannot support parallel data isolation, a concurrency limit of 1 is enforced for that environment profile; subsequent runs queue until the prior run releases
 
 The isolation strategy for each environment is declared in the environment profile configuration and enforced by this service before execution begins. The Execution Service may not dispatch a run until this service confirms isolation is established.
 
@@ -1085,21 +1070,21 @@ State management actions must be defined in a declarative action catalog, not as
 
 Each action in the catalog declares:
 
-* `name` — stable identifier
-* `preconditions` — what must be true before the action runs
-* `inputs` — parameters the orchestrator provides per run
-* `side_effects` — what the action changes in the environment
-* `cleanup_action` — the paired teardown action reference
-* `policy_tier` — Tier 1 for standard setup, Tier 2 for sensitive or destructive mutations
+* `name` â€” stable identifier
+* `preconditions` â€” what must be true before the action runs
+* `inputs` â€” parameters the orchestrator provides per run
+* `side_effects` â€” what the action changes in the environment
+* `cleanup_action` â€” the paired teardown action reference
+* `policy_tier` â€” Tier 1 for standard setup, Tier 2 for sensitive or destructive mutations
 
 ### Data lifecycle contract
 
 Each run that uses State Management must follow this four-phase contract:
 
-1. **Setup** — called before execution; creates isolated data and verifies preconditions
-2. **Verification** — confirms setup succeeded and the environment is in the expected state; blocks execution if verification fails
-3. **Cleanup** — called after execution completes regardless of pass or fail; removes run-scoped data and releases any locks or reservations
-4. **Audit** — records all actions taken with timestamps, run ID, environment ID, and actor identity
+1. **Setup** â€” called before execution; creates isolated data and verifies preconditions
+2. **Verification** â€” confirms setup succeeded and the environment is in the expected state; blocks execution if verification fails
+3. **Cleanup** â€” called after execution completes regardless of pass or fail; removes run-scoped data and releases any locks or reservations
+4. **Audit** â€” records all actions taken with timestamps, run ID, environment ID, and actor identity
 
 Cleanup must execute even if the run fails or is cancelled partway through. Cleanup failures are flagged as warnings attached to the run record.
 
@@ -1107,7 +1092,7 @@ Cleanup must execute even if the run fails or is cancelled partway through. Clea
 
 * all Tier 2 state mutations require an explicit approval gate before execution
 * the service must not assume that environment state is clean between runs
-* the service must support idempotent setup — re-running setup for the same run ID must produce the same state without duplication
+* the service must support idempotent setup â€” re-running setup for the same run ID must produce the same state without duplication
 * concurrency limits and isolation assignments must be persisted so they survive orchestrator restarts
 
 ---
@@ -1265,6 +1250,22 @@ Provide centralized audit trail, metrics, tracing, and operational visibility.
 * approval wait time
 * context pack size metrics
 
+### Baseline SLO targets (initial)
+
+These are baseline production-minded targets for Phase 1/2 and should be refined with real telemetry.
+
+| SLO | Target |
+| --- | --- |
+| Request acceptance latency (p95) | <= 500 ms |
+| Workflow orchestration stage transition latency (p95, internal) | <= 2 s |
+| Retrieval + context pack build latency (p95) | <= 3 s |
+| Agent task completion latency (p95, non-execution agents) | <= 12 s |
+| Execution kickoff latency after assets ready (p95) | <= 5 s |
+| Evidence finalization latency per run (p95) | <= 10 s after run end |
+| Approval decision propagation latency (p95) | <= 1 s |
+| Platform availability (monthly) | >= 99.5% |
+| Failed workflow automatic recovery success rate | >= 99% within 5 min |
+
 ### Non-functional notes
 
 * avoid raw secrets or sensitive bodies
@@ -1358,9 +1359,9 @@ Internal service-to-service calls use scoped service tokens, not user credential
 
 Use the event bus for:
 
-* workflow stage advancement (Orchestration Service → downstream services)
-* stage completion signals (services → Orchestration Service)
-* worker dispatch (Execution Service → Browser Worker / API Runner Worker pools)
+* workflow stage advancement (Orchestration Service â†’ downstream services)
+* stage completion signals (services â†’ Orchestration Service)
+* worker dispatch (Execution Service â†’ Browser Worker / API Runner Worker pools)
 * evidence finalization signals
 * healing analysis triggers
 * triage triggers
@@ -1526,7 +1527,7 @@ This separation is one of the strongest parts of the service design.
 
 # 10. Recommended initial build order
 
-## Phase A — Core workflow backbone
+## Phase A â€” Core workflow backbone
 
 1. Request Gateway
 2. Trigger Service
@@ -1534,7 +1535,7 @@ This separation is one of the strongest parts of the service design.
 4. Policy & Approval
 5. Audit & Observability
 
-## Phase B — Understanding and context foundation
+## Phase B â€” Understanding and context foundation
 
 6. Distributed Understanding Service
 7. Semantic State Service
@@ -1544,7 +1545,7 @@ This separation is one of the strongest parts of the service design.
 11. Retrieval Service
 12. Test Asset Service
 
-## Phase C — Execution foundation
+## Phase C â€” Execution foundation
 
 13. Execution Service
 14. Browser Worker
@@ -1552,7 +1553,7 @@ This separation is one of the strongest parts of the service design.
 16. **Evidence Service**
 17. State Management
 
-## Phase D — Intelligence and hardening
+## Phase D â€” Intelligence and hardening
 
 18. Agent Runtime
 19. Healing Service
@@ -1608,17 +1609,17 @@ Before committing to the full production-minded MVP, the team should target a **
 
 The minimum slice is:
 
-1. **Request Gateway** — accepts a request with a case name
-2. **QA Orchestration** — drives a simplified workflow through ingestion → context → generation
-3. **Distributed Understanding Service** — ingests a case folder and produces fused case understanding with chunks
-4. **Retrieval Service** — provides bounded context to the agent using a local in-process vector store (no Qdrant required at this stage)
-5. **Agent Runtime** — runs one agent (Test Authoring Agent) against the bounded context
-6. **Test Asset Service** — stores and versions the generated test
-7. **Evidence Service** (schema only) — records run metadata; no full browser/trace evidence capture yet
+1. **Request Gateway** â€” accepts a request with a case name
+2. **QA Orchestration** â€” drives a simplified workflow through ingestion â†’ context â†’ generation
+3. **Distributed Understanding Service** â€” ingests a case folder and produces fused case understanding with chunks
+4. **Retrieval Service** â€” provides bounded context to the agent using a local in-process vector store (no Qdrant required at this stage)
+5. **Agent Runtime** â€” runs one agent (Test Authoring Agent) against the bounded context
+6. **Test Asset Service** â€” stores and versions the generated test
+7. **Evidence Service** (schema only) â€” records run metadata; no full browser/trace evidence capture yet
 
 This slice demonstrates:
 
-* folder ingestion → artifact fusion → chunk retrieval → agent reasoning → test asset generation
+* folder ingestion â†’ artifact fusion â†’ chunk retrieval â†’ agent reasoning â†’ test asset generation
 
 What is deliberately omitted from the demo slice:
 
@@ -1638,25 +1639,25 @@ The demo slice produces a real, inspectable test file from a real case folder. T
 
 The final recommended service decomposition is:
 
-1. **Request Gateway Service** — receives and validates inbound requests
-2. **Trigger Service** — handles local pre-commit, watch mode, and manual local triggers
-3. **QA Orchestration Service** — controls lifecycle and workflow state
-4. **Distributed Understanding Service** — ingests, normalizes, and fuses folder/URL artifacts into case understanding
-5. **Semantic State Service** — creates semantic state maps, transitions, and fingerprints
-6. **Mismatch Detection Service** — detects requirement and artifact conflicts before execution
-7. **Knowledge Graph Service** — stores explicit QA relationships and supports bounded graph expansion and impact lookup
-8. **Retrieval Service** — provides full Graph-RAG runtime: hybrid search, expansion, **reranking**, and context packs
-9. **Agent Runtime Service** — hosts specialized reasoning agents and consumes grounded context packs
-10. **Test Asset Service** — manages strategies, tests, reusable modules, and governed versions
-11. **Execution Service** — coordinates diagnostic and regression execution
-12. **Browser Worker Service** — runs web tests with native state-aware waits and state-aware assertions
-13. **API Runner Worker Service** — runs API tests
-14. **Evidence Service** — persists forensic-grade evidence, semantic trace, visual diffs, reasoning logs, and summaries
-15. **Healing Service** — performs forensic self-healing analysis and manages healing logs
-16. **Playbook Service** — exports and governs deterministic playbooks from diagnostic discoveries
-17. **State Management Service** — prepares and cleans deterministic test state
-18. **Triage & Confidence Service** — classifies failures with confidence and evidence-backed explanation
-19. **Defect Draft Service** — creates defect-quality packets
-20. **Policy & Approval Service** — governs risky and uncertain actions
-21. **Audit & Observability Service** — captures logs, traces, metrics, RAG logs, mismatch logs, healing logs, and playbook logs
+1. **Request Gateway Service** â€” receives and validates inbound requests
+2. **Trigger Service** â€” handles local pre-commit, watch mode, and manual local triggers
+3. **QA Orchestration Service** â€” controls lifecycle and workflow state
+4. **Distributed Understanding Service** â€” ingests, normalizes, and fuses folder/URL artifacts into case understanding
+5. **Semantic State Service** â€” creates semantic state maps, transitions, and fingerprints
+6. **Mismatch Detection Service** â€” detects requirement and artifact conflicts before execution
+7. **Knowledge Graph Service** â€” stores explicit QA relationships and supports bounded graph expansion and impact lookup
+8. **Retrieval Service** â€” provides full Graph-RAG runtime: hybrid search, expansion, **reranking**, and context packs
+9. **Agent Runtime Service** â€” hosts specialized reasoning agents and consumes grounded context packs
+10. **Test Asset Service** â€” manages strategies, tests, reusable modules, and governed versions
+11. **Execution Service** â€” coordinates `draft` handoff plus diagnostic and regression execution
+12. **Browser Worker Service** â€” runs web tests with native state-aware waits and state-aware assertions
+13. **API Runner Worker Service** â€” runs API tests
+14. **Evidence Service** â€” persists forensic-grade evidence, semantic trace, visual diffs, reasoning logs, and summaries
+15. **Healing Service** â€” performs forensic self-healing analysis and manages healing logs
+16. **Playbook Service** â€” exports and governs deterministic playbooks from diagnostic discoveries
+17. **State Management Service** â€” prepares and cleans deterministic test state
+18. **Triage & Confidence Service** â€” classifies failures with confidence and evidence-backed explanation
+19. **Defect Draft Service** â€” creates defect-quality packets
+20. **Policy & Approval Service** â€” governs risky and uncertain actions
+21. **Audit & Observability Service** â€” captures logs, traces, metrics, RAG logs, mismatch logs, healing logs, and playbook logs
 
